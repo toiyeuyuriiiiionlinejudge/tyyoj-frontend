@@ -46,7 +46,7 @@ $$ S = \\sum_{i=1}^{n} (a_i + b_i) $$
         <div>
           <h1 className="text-2xl font-bold text-sky-400">Toi Yêu Yuri Online Judge (`tyyoj`)</h1>
           <p className="text-slate-400 text-sm flex items-center gap-2 mt-1">
-            <span>High-Security Online Judge with Persistent Docker Judgers</span>
+            <span>High-Security Online Judge with Persistent Podman Judgers</span>
             <span className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
               <Activity className="w-3 h-3" /> API: {apiStatus}
             </span>
@@ -100,7 +100,7 @@ $$ S = \\sum_{i=1}^{n} (a_i + b_i) $$
         <section className="bg-slate-900 border border-slate-800 rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold flex items-center gap-2 text-slate-100">
-              <Cpu className="w-5 h-5 text-purple-400" /> Persistent Docker Judger Instances
+              <Cpu className="w-5 h-5 text-purple-400" /> Persistent Podman Judger Instances
             </h2>
             <button className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-sm font-medium">
               + Provision New Judger

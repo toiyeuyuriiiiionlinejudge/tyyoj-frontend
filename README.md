@@ -8,7 +8,7 @@ Web interface for **Toi Yêu Yuri Online Judge (`tyyoj`)**, built with React 19,
 - **Authentication:** Registration with SMTP email verification flow, login, and user profile management.
 - **Code Submission:** Monaco/syntax-highlighted code editor for C++, Pascal, and Python submissions.
 - **Live Submission Status:** Real-time verdict updates (`PENDING`, `COMPILING`, `RUNNING`, `ACCEPTED`, `WRONG_ANSWER`, etc.).
-- **Admin Judger Fleet Control:** Admin GUI dashboard to create, scale, inspect, start, and stop persistent Docker judger worker containers.
+- **Admin Judger Fleet Control:** Admin GUI dashboard to create, scale, inspect, start, and stop persistent Podman judger worker containers.
 - **Contest Scoreboard:** Live standings and problem statistics.
 
 ## Technology Stack
