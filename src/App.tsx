@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Terminal, Cpu, Server, CheckCircle2 } from 'lucide-react';
+import { Terminal, Cpu, Server, CheckCircle2, Activity } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'problem' | 'admin'>('problem');
+  const [verdicts, setVerdicts] = useState<string[]>([]);
+  const [apiStatus, setApiStatus] = useState<string>('Checking...');
+
+  useEffect(() => {
+    // Relative API requests through unified domain routing (/api/v1 and /health)
+    fetch('/health')
+      .then((res) => res.text())
+      .then((data) => setApiStatus(`Backend Online (${data})`))
+      .catch(() => setApiStatus('Backend Offline'));
+
+    fetch('/api/v1/verdicts')
+      .then((res) => res.json())
+      .then((data) => setVerdicts(data))
+      .catch(() => setVerdicts([]));
+  }, []);
 
   const sampleProblemMarkdown = `
 # P1001: A + B Problem (with KaTeX Math)
@@ -20,8 +35,8 @@ Compute the value of $S$:
 $$ S = \\sum_{i=1}^{n} (a_i + b_i) $$
 
 ### Dynamic Problem Limits
-- **Time Limit:** 1000 ms
-- **Memory Limit:** 256 MB
+- **Time Limit:** 1000 ms (Configurable per problem)
+- **Memory Limit:** 256 MB (Configurable per problem)
 - **Judging Mode:** Standard Token Diff
 `;
 
@@ -30,7 +45,12 @@ $$ S = \\sum_{i=1}^{n} (a_i + b_i) $$
       <header className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-sky-400">Toi Yêu Yuri Online Judge (`tyyoj`)</h1>
-          <p className="text-slate-400 text-sm">High-Security Online Judge with Persistent Docker Judgers</p>
+          <p className="text-slate-400 text-sm flex items-center gap-2 mt-1">
+            <span>High-Security Online Judge with Persistent Docker Judgers</span>
+            <span className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Activity className="w-3 h-3" /> API: {apiStatus}
+            </span>
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -58,6 +78,22 @@ $$ S = \\sum_{i=1}^{n} (a_i + b_i) $$
             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
               {sampleProblemMarkdown}
             </ReactMarkdown>
+          </div>
+
+          <div className="mt-6 border-t border-slate-800 pt-4">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Live Submission Verdicts (from unified `/api/v1/verdicts`):
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {verdicts.map((v) => (
+                <span
+                  key={v}
+                  className="bg-slate-800 text-slate-300 text-xs font-mono px-2 py-1 rounded border border-slate-700"
+                >
+                  {v}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
       ) : (
