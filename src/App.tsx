@@ -24,6 +24,12 @@ import {
   LogOut,
   RefreshCw,
   FolderPlus,
+  ArrowLeft,
+  Calendar,
+  Medal,
+  Award,
+  Bell,
+  UserCheck,
 } from 'lucide-react';
 
 type TabType =
@@ -115,9 +121,19 @@ export const App: React.FC = () => {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [contests, setContests] = useState<Contest[]>([]);
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [contestSubTab, setContestSubTab] = useState<'problems' | 'standings' | 'announcements'>('problems');
+
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [isJoinedOrg, setIsJoinedOrg] = useState<boolean>(false);
+
   const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+
   const [wikis, setWikis] = useState<Wiki[]>([]);
+  const [selectedWiki, setSelectedWiki] = useState<Wiki | null>(null);
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [routesCatalog, setRoutesCatalog] = useState<RouteEntry[]>([]);
   const [judgerWorkers, setJudgerWorkers] = useState<JudgerWorker[]>([]);
@@ -320,7 +336,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Admin Handle Create
   const handleAdminCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminMsg('');
@@ -429,7 +444,16 @@ export const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
+            <div
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={() => {
+                setActiveTab('home');
+                setSelectedContest(null);
+                setSelectedOrg(null);
+                setSelectedBlog(null);
+                setSelectedWiki(null);
+              }}
+            >
               <div className="w-9 h-9 bg-sky-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-xs">
                 Y
               </div>
@@ -443,7 +467,13 @@ export const App: React.FC = () => {
 
             <nav className="hidden md:flex items-center space-x-1 text-sm font-medium">
               <button
-                onClick={() => setActiveTab('home')}
+                onClick={() => {
+                  setActiveTab('home');
+                  setSelectedContest(null);
+                  setSelectedOrg(null);
+                  setSelectedBlog(null);
+                  setSelectedWiki(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'home' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -451,7 +481,13 @@ export const App: React.FC = () => {
                 <Home className="w-4 h-4" /> Trang chủ
               </button>
               <button
-                onClick={() => setActiveTab('problems')}
+                onClick={() => {
+                  setActiveTab('problems');
+                  setSelectedContest(null);
+                  setSelectedOrg(null);
+                  setSelectedBlog(null);
+                  setSelectedWiki(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'problems' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -459,7 +495,10 @@ export const App: React.FC = () => {
                 <BookOpen className="w-4 h-4" /> Bài tập ({problems.length})
               </button>
               <button
-                onClick={() => setActiveTab('contests')}
+                onClick={() => {
+                  setActiveTab('contests');
+                  setSelectedContest(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'contests' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -467,7 +506,10 @@ export const App: React.FC = () => {
                 <Trophy className="w-4 h-4" /> Kỳ thi ({contests.length})
               </button>
               <button
-                onClick={() => setActiveTab('organizations')}
+                onClick={() => {
+                  setActiveTab('organizations');
+                  setSelectedOrg(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'organizations' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -483,7 +525,10 @@ export const App: React.FC = () => {
                 <Send className="w-4 h-4" /> Bài nộp ({submissions.length})
               </button>
               <button
-                onClick={() => setActiveTab('blogs')}
+                onClick={() => {
+                  setActiveTab('blogs');
+                  setSelectedBlog(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'blogs' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -491,7 +536,10 @@ export const App: React.FC = () => {
                 <FileText className="w-4 h-4" /> Blogs ({blogs.length})
               </button>
               <button
-                onClick={() => setActiveTab('wiki')}
+                onClick={() => {
+                  setActiveTab('wiki');
+                  setSelectedWiki(null);
+                }}
                 className={`px-3 py-2 rounded-md flex items-center gap-1.5 transition ${
                   activeTab === 'wiki' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
@@ -740,63 +788,269 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW: Kỳ thi (Contests) */}
+        {/* VIEW: Kỳ thi (Contests & Contest Detail) */}
         {activeTab === 'contests' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu</h2>
-              <div className="mt-6 divide-y divide-slate-200">
-                {contests.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-500">
-                    Không tìm thấy kỳ thi nào. Quản trị viên có thể tạo kỳ thi mới từ trang Admin.
-                  </div>
-                ) : (
-                  contests.map((c) => (
-                    <div key={c.id} className="py-4 flex justify-between items-center">
-                      <div>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
-                          {c.rule_type} Rules
-                        </span>
-                        <h3 className="text-base font-semibold text-slate-900 mt-1">{c.title}</h3>
-                        <p className="text-xs text-slate-600 mt-1">{c.description}</p>
-                        <div className="text-xs text-slate-400 mt-2 font-mono">
-                          Bắt đầu: {new Date(c.start_time).toLocaleString()} &bull; Kết thúc: {new Date(c.end_time).toLocaleString()}
-                        </div>
-                      </div>
-                      <button className="px-4 py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700">
-                        Chi tiết kỳ thi
-                      </button>
+            {selectedContest ? (
+              // Chi tiết kỳ thi (Contest Detail View)
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                  <button
+                    onClick={() => setSelectedContest(null)}
+                    className="text-xs text-slate-600 hover:text-sky-600 flex items-center gap-1 font-medium mb-4"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách kỳ thi
+                  </button>
+
+                  <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+                    <div>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                        {selectedContest.rule_type} Rules
+                      </span>
+                      <h2 className="text-2xl font-bold text-slate-900 mt-2">{selectedContest.title}</h2>
+                      <p className="text-sm text-slate-600 mt-1">{selectedContest.description}</p>
                     </div>
-                  ))
-                )}
+                    <div className="text-right text-xs text-slate-500 font-mono">
+                      <div className="flex items-center gap-1 justify-end text-slate-700">
+                        <Calendar className="w-3.5 h-3.5" /> Bắt đầu: {new Date(selectedContest.start_time).toLocaleString()}
+                      </div>
+                      <div className="mt-1">Kết thúc: {new Date(selectedContest.end_time).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Contest Sub-navigation */}
+                  <div className="flex gap-2 mt-4 border-b border-slate-100 pb-2">
+                    <button
+                      onClick={() => setContestSubTab('problems')}
+                      className={`px-3 py-1.5 rounded text-xs font-medium ${
+                        contestSubTab === 'problems' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      Bài thi kỳ thi
+                    </button>
+                    <button
+                      onClick={() => setContestSubTab('standings')}
+                      className={`px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1 ${
+                        contestSubTab === 'standings' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <Trophy className="w-3.5 h-3.5" /> Bảng xếp hạng trực tiếp
+                    </button>
+                    <button
+                      onClick={() => setContestSubTab('announcements')}
+                      className={`px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1 ${
+                        contestSubTab === 'announcements' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <Bell className="w-3.5 h-3.5" /> Thông báo đính chính
+                    </button>
+                  </div>
+
+                  {/* Contest Sub-view: Problems */}
+                  {contestSubTab === 'problems' && (
+                    <div className="mt-4 divide-y divide-slate-100">
+                      {problems.map((prob, idx) => (
+                        <div
+                          key={prob.id}
+                          onClick={() => {
+                            setSelectedProblem(prob);
+                            setActiveTab('problems');
+                          }}
+                          className="py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 px-2 rounded"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-7 h-7 bg-sky-100 text-sky-800 font-bold rounded flex items-center justify-center text-xs font-mono">
+                              {String.fromCharCode(65 + idx)}
+                            </span>
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-900">{prob.title}</h4>
+                              <span className="text-xs text-slate-500 font-mono">
+                                {prob.time_limit_ms}ms &bull; {prob.memory_limit_mb}MB &bull; {prob.judge_mode}
+                              </span>
+                            </div>
+                          </div>
+                          <button className="px-3 py-1 bg-sky-50 text-sky-700 rounded text-xs font-medium hover:bg-sky-100">
+                            Làm bài
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Contest Sub-view: Standings */}
+                  {contestSubTab === 'standings' && (
+                    <div className="mt-4 border border-slate-200 rounded overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="p-3 w-16">Hạng</th>
+                            <th className="p-3">Thí sinh</th>
+                            <th className="p-3">Số bài giải được</th>
+                            <th className="p-3">Tổng điểm / Penalty</th>
+                            <th className="p-3">Bài A</th>
+                            <th className="p-3">Bài B</th>
+                            <th className="p-3">Bài C</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          <tr className="hover:bg-slate-50">
+                            <td className="p-3 font-bold text-amber-600 flex items-center gap-1">
+                              <Medal className="w-4 h-4 text-amber-500" /> 1
+                            </td>
+                            <td className="p-3 font-semibold text-slate-900">toiyeuyuriiiii</td>
+                            <td className="p-3 font-bold text-emerald-600">3 / 3</td>
+                            <td className="p-3 font-mono">142</td>
+                            <td className="p-3 text-emerald-600 font-bold font-mono">+1 (15m)</td>
+                            <td className="p-3 text-emerald-600 font-bold font-mono">+1 (45m)</td>
+                            <td className="p-3 text-emerald-600 font-bold font-mono">+2 (82m)</td>
+                          </tr>
+                          <tr className="hover:bg-slate-50">
+                            <td className="p-3 font-bold text-slate-500 flex items-center gap-1">
+                              <Award className="w-4 h-4 text-slate-400" /> 2
+                            </td>
+                            <td className="p-3 font-semibold text-slate-900">nmkdeveloper</td>
+                            <td className="p-3 font-bold text-emerald-600">2 / 3</td>
+                            <td className="p-3 font-mono">89</td>
+                            <td className="p-3 text-emerald-600 font-bold font-mono">+1 (22m)</td>
+                            <td className="p-3 text-emerald-600 font-bold font-mono">+1 (67m)</td>
+                            <td className="p-3 text-slate-400 font-mono">-</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Contest Sub-view: Announcements */}
+                  {contestSubTab === 'announcements' && (
+                    <div className="mt-4 p-4 border border-sky-100 bg-sky-50/50 rounded text-xs text-slate-700 space-y-2">
+                      <div className="font-semibold text-sky-900 flex items-center gap-1">
+                        <Bell className="w-3.5 h-3.5" /> Thông báo từ Ban Giám khảo (10 phút trước):
+                      </div>
+                      <p>Bài C (Interactive): Chú ý luôn xả bộ đệm `fflush(stdout)` để tránh lỗi IDLENESS_LIMIT_EXCEEDED.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              // Danh sách kỳ thi (Contest List View)
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu</h2>
+                <div className="mt-6 divide-y divide-slate-200">
+                  {contests.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-500">
+                      Không tìm thấy kỳ thi nào. Quản trị viên có thể tạo kỳ thi mới từ trang Admin.
+                    </div>
+                  ) : (
+                    contests.map((c) => (
+                      <div key={c.id} className="py-4 flex justify-between items-center">
+                        <div>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                            {c.rule_type} Rules
+                          </span>
+                          <h3 className="text-base font-semibold text-slate-900 mt-1">{c.title}</h3>
+                          <p className="text-xs text-slate-600 mt-1">{c.description}</p>
+                          <div className="text-xs text-slate-400 mt-2 font-mono">
+                            Bắt đầu: {new Date(c.start_time).toLocaleString()} &bull; Kết thúc: {new Date(c.end_time).toLocaleString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedContest(c);
+                            setContestSubTab('problems');
+                          }}
+                          className="px-4 py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700"
+                        >
+                          Chi tiết kỳ thi
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* VIEW: Tổ chức (Organizations) */}
+        {/* VIEW: Tổ chức (Organizations & Organization Detail) */}
         {activeTab === 'organizations' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Các câu lạc bộ &amp; Tổ chức đối tác</h2>
-              {organizations.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
-                  Không tìm thấy tổ chức nào. Quản trị viên có thể thêm tổ chức từ trang Admin.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                  {organizations.map((org) => (
-                    <div key={org.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                      <div className="font-bold text-slate-900 text-base">{org.name}</div>
-                      <p className="text-xs text-slate-600 mt-1">{org.description}</p>
+            {selectedOrg ? (
+              // Chi tiết tổ chức (Organization Detail View)
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                  <button
+                    onClick={() => setSelectedOrg(null)}
+                    className="text-xs text-slate-600 hover:text-sky-600 flex items-center gap-1 font-medium mb-4"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách tổ chức
+                  </button>
+
+                  <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">{selectedOrg.name}</h2>
+                      <p className="text-sm text-slate-600 mt-1">{selectedOrg.description}</p>
                       <div className="text-xs text-slate-500 mt-3 font-mono">
-                        {org.member_count} thành viên &bull; {org.contests_count} kỳ thi
+                        {selectedOrg.member_count} thành viên &bull; {selectedOrg.contests_count} kỳ thi đã tổ chức
                       </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => setIsJoinedOrg(!isJoinedOrg)}
+                      className={`px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 ${
+                        isJoinedOrg
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : 'bg-sky-600 text-white hover:bg-sky-700'
+                      }`}
+                    >
+                      <UserCheck className="w-3.5 h-3.5" /> {isJoinedOrg ? 'Đã là thành viên' : 'Tham gia tổ chức'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                      <h4 className="font-semibold text-slate-900 text-sm mb-2">Kỳ thi trực thuộc</h4>
+                      <ul className="text-xs text-slate-600 space-y-2">
+                        <li>&bull; Toi Yêu Yuri Contest #01 (ICPC)</li>
+                        <li>&bull; Yuri Grand Contest #02 (IOI)</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                      <h4 className="font-semibold text-slate-900 text-sm mb-2">Ban Quản trị Tổ chức</h4>
+                      <ul className="text-xs text-slate-600 space-y-1">
+                        <li>&bull; <strong>toiyeuyuriiiii</strong> — Chủ nhiệm CLB</li>
+                        <li>&bull; <strong>nmkdeveloper</strong> — Ban Chuyên môn &amp; Kỹ thuật</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Danh sách tổ chức (Organization List View)
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                <h2 className="text-xl font-bold text-slate-900">Các câu lạc bộ &amp; Tổ chức đối tác</h2>
+                {organizations.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    Không tìm thấy tổ chức nào. Quản trị viên có thể thêm tổ chức từ trang Admin.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    {organizations.map((org) => (
+                      <div
+                        key={org.id}
+                        onClick={() => setSelectedOrg(org)}
+                        className="p-5 border border-slate-200 rounded-lg bg-white hover:border-sky-400 cursor-pointer transition shadow-2xs"
+                      >
+                        <div className="font-bold text-slate-900 text-base">{org.name}</div>
+                        <p className="text-xs text-slate-600 mt-1">{org.description}</p>
+                        <div className="text-xs text-slate-500 mt-3 font-mono">
+                          {org.member_count} thành viên &bull; {org.contests_count} kỳ thi
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -881,55 +1135,107 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW: Blogs */}
+        {/* VIEW: Blogs (List & Blog Reader) */}
         {activeTab === 'blogs' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức</h2>
-              {blogs.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
-                  Không tìm thấy bài viết nào. Quản trị viên có thể đăng bài từ trang Admin.
+            {selectedBlog ? (
+              // Chi tiết bài viết Blog (Blog Reader View)
+              <div className="bg-white p-8 rounded-lg border border-slate-200 shadow-xs">
+                <button
+                  onClick={() => setSelectedBlog(null)}
+                  className="text-xs text-slate-600 hover:text-sky-600 flex items-center gap-1 font-medium mb-4"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách bài viết
+                </button>
+                <div className="text-xs text-slate-500 font-mono">
+                  {new Date(selectedBlog.created_at).toLocaleDateString()} &bull; bởi {selectedBlog.author_name}
                 </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {blogs.map((b) => (
-                    <article key={b.id} className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
-                      <div className="text-xs text-slate-500">
-                        {new Date(b.created_at).toLocaleDateString()} &bull; bởi {b.author_name}
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900 mt-1">{b.title}</h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">{b.content_markdown}</p>
-                    </article>
-                  ))}
+                <h1 className="text-2xl font-bold text-slate-900 mt-2 mb-6 border-b border-slate-100 pb-4">
+                  {selectedBlog.title}
+                </h1>
+                <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
+                  <ReactMarkdown>{selectedBlog.content_markdown}</ReactMarkdown>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Danh sách bài viết Blog
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức</h2>
+                {blogs.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    Không tìm thấy bài viết nào. Quản trị viên có thể đăng bài từ trang Admin.
+                  </div>
+                ) : (
+                  <div className="mt-6 space-y-4">
+                    {blogs.map((b) => (
+                      <article
+                        key={b.id}
+                        onClick={() => setSelectedBlog(b)}
+                        className="p-4 border border-slate-200 rounded-lg hover:border-sky-400 cursor-pointer transition bg-white"
+                      >
+                        <div className="text-xs text-slate-500">
+                          {new Date(b.created_at).toLocaleDateString()} &bull; bởi {b.author_name}
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900 mt-1">{b.title}</h3>
+                        <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-2">{b.content_markdown}</p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* VIEW: Wiki */}
+        {/* VIEW: Wiki (List & Wiki Reader) */}
         {activeTab === 'wiki' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki</h2>
-              {wikis.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
-                  Không tìm thấy tài liệu wiki nào. Quản trị viên có thể thêm mục wiki từ trang Admin.
+            {selectedWiki ? (
+              // Chi tiết Wiki (Wiki Reader View)
+              <div className="bg-white p-8 rounded-lg border border-slate-200 shadow-xs">
+                <button
+                  onClick={() => setSelectedWiki(null)}
+                  className="text-xs text-slate-600 hover:text-sky-600 flex items-center gap-1 font-medium mb-4"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh mục Wiki
+                </button>
+                <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                  {selectedWiki.category}
+                </span>
+                <h1 className="text-2xl font-bold text-slate-900 mt-2 mb-6 border-b border-slate-100 pb-4">
+                  {selectedWiki.title}
+                </h1>
+                <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
+                  <ReactMarkdown>{selectedWiki.content_markdown}</ReactMarkdown>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  {wikis.map((w) => (
-                    <div key={w.id} className="p-4 border border-slate-200 rounded-lg">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-                        {w.category}
-                      </span>
-                      <h3 className="font-bold text-sm text-slate-900 mt-2">{w.title}</h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">{w.content_markdown}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Danh mục Wiki
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki</h2>
+                {wikis.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    Không tìm thấy tài liệu wiki nào. Quản trị viên có thể thêm mục wiki từ trang Admin.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    {wikis.map((w) => (
+                      <div
+                        key={w.id}
+                        onClick={() => setSelectedWiki(w)}
+                        className="p-5 border border-slate-200 rounded-lg hover:border-sky-400 cursor-pointer transition bg-white"
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                          {w.category}
+                        </span>
+                        <h3 className="font-bold text-sm text-slate-900 mt-2">{w.title}</h3>
+                        <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-2">{w.content_markdown}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1050,7 +1356,7 @@ export const App: React.FC = () => {
                           <input
                             type="text"
                             required
-                            placeholder="P1004"
+                            placeholder="P1005"
                             value={probCode}
                             onChange={(e) => setProbCode(e.target.value)}
                             className="w-full text-xs p-2 border rounded font-mono"
@@ -1344,7 +1650,7 @@ export const App: React.FC = () => {
                           <td className="p-2.5 text-right">
                             <button
                               onClick={() => {
-                                fetch(r.path.replace('{id_or_code}', 'P1001'))
+                                fetch(r.path.replace('{id_or_code}', 'P1001').replace('{id}', 'c0000000-0000-0000-0000-000000000001'))
                                   .then((res) => alert(`Test ${r.path} -> HTTP ${res.status}`))
                                   .catch((err) => alert(`Test ${r.path} -> ${err.message}`));
                               }}
@@ -1521,7 +1827,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="text-slate-600">Light Mode</span>
             <span>&bull;</span>
-            <span className="text-slate-600">Trung tâm Quản trị Toàn diện</span>
+            <span className="text-slate-600">Hệ thống Quản trị Toàn diện</span>
             <span>&bull;</span>
             <span className="text-slate-600">Podman Engine API</span>
           </div>
