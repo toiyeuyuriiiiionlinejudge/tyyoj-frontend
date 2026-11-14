@@ -30,6 +30,7 @@ import {
   Award,
   Bell,
   UserCheck,
+  Search,
 } from 'lucide-react';
 
 type TabType =
@@ -120,6 +121,8 @@ export const App: React.FC = () => {
   // Entities
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [searchProblem, setSearchProblem] = useState<string>('');
+  const [filterDiff, setFilterDiff] = useState<string>('All');
   const [contests, setContests] = useState<Contest[]>([]);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [contestSubTab, setContestSubTab] = useState<'problems' | 'standings' | 'announcements'>('problems');
@@ -197,12 +200,7 @@ export const App: React.FC = () => {
 
     fetch('/api/v1/problems')
       .then((res) => res.json())
-      .then((data) => {
-        setProblems(data);
-        if (data.length > 0 && !selectedProblem) {
-          setSelectedProblem(data[0]);
-        }
-      })
+      .then((data) => setProblems(data))
       .catch((err) => console.error('Error fetching problems:', err));
 
     fetch('/api/v1/contests')
@@ -250,6 +248,14 @@ export const App: React.FC = () => {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const filteredProblems = problems.filter((p) => {
+    const matchesSearch =
+      p.code.toLowerCase().includes(searchProblem.toLowerCase()) ||
+      p.title.toLowerCase().includes(searchProblem.toLowerCase());
+    const matchesDiff = filterDiff === 'All' || p.difficulty === filterDiff;
+    return matchesSearch && matchesDiff;
+  });
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -660,131 +666,200 @@ export const App: React.FC = () => {
 
         {/* VIEW: Bài tập (Problems) */}
         {activeTab === 'problems' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-4 space-y-3">
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs">
-                <h3 className="font-semibold text-slate-900 text-sm mb-3">Danh sách bài tập</h3>
-                {problems.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-500">
-                    Không tìm thấy bài tập nào. Quản trị viên có thể thêm bài tập mới từ trang Admin.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {problems.map((prob) => (
-                      <div
-                        key={prob.id}
-                        onClick={() => setSelectedProblem(prob)}
-                        className={`p-3 rounded-md border cursor-pointer transition ${
-                          selectedProblem?.id === prob.id
-                            ? 'border-sky-500 bg-sky-50/50'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-mono font-bold text-sky-700">{prob.code}</span>
-                          <span className="text-slate-500">{prob.judge_mode}</span>
-                        </div>
-                        <div className="font-medium text-slate-900 text-sm mt-1">{prob.title}</div>
-                        <div className="flex gap-2 text-xs text-slate-500 mt-2">
-                          <span>{prob.time_limit_ms}ms</span>
-                          <span>&bull;</span>
-                          <span>{prob.memory_limit_mb}MB</span>
-                          <span>&bull;</span>
-                          <span
-                            className={`font-semibold ${
-                              prob.difficulty === 'Easy'
-                                ? 'text-emerald-600'
-                                : prob.difficulty === 'Medium'
-                                ? 'text-amber-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {prob.difficulty}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="space-y-6">
+            {selectedProblem ? (
+              // Chi tiết bài tập (Dedicated Full-width Problem Detail Page)
+              <div className="space-y-6">
+                <button
+                  onClick={() => setSelectedProblem(null)}
+                  className="text-xs text-slate-600 hover:text-sky-600 flex items-center gap-1 font-medium"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách bài tập
+                </button>
 
-            <div className="lg:col-span-8 space-y-6">
-              {selectedProblem ? (
-                <>
-                  <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-                    <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
-                      <div>
-                        <span className="text-xs font-mono font-bold text-sky-600">{selectedProblem.code}</span>
-                        <h2 className="text-xl font-bold text-slate-900">{selectedProblem.title}</h2>
-                      </div>
-                      <div className="text-right text-xs text-slate-500 font-mono">
-                        <div>
-                          Giới hạn thời gian: <strong className="text-slate-800">{selectedProblem.time_limit_ms} ms</strong>
-                        </div>
-                        <div>
-                          Giới hạn bộ nhớ: <strong className="text-slate-800">{selectedProblem.memory_limit_mb} MB</strong>
-                        </div>
-                        <div>
-                          Chế độ chấm: <strong className="text-slate-800">{selectedProblem.judge_mode}</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {selectedProblem.statement_markdown}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                        <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-slate-500 font-medium">Ngôn ngữ:</label>
-                        <select
-                          value={selectedLang}
-                          onChange={(e) => setSelectedLang(e.target.value)}
-                          className="text-xs border border-slate-300 rounded px-2.5 py-1 bg-white font-mono"
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                  <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                          {selectedProblem.code}
+                        </span>
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                            selectedProblem.difficulty === 'Easy'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : selectedProblem.difficulty === 'Medium'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
                         >
-                          <option value="cpp20">C++20 (g++ -std=c++20 -O2)</option>
-                          <option value="pascal">Pascal (fpc -O2)</option>
-                          <option value="python3">Python 3 (python3 / pypy3)</option>
-                        </select>
+                          {selectedProblem.difficulty}
+                        </span>
+                        <span className="text-xs text-slate-500 font-mono">
+                          {selectedProblem.judge_mode}
+                        </span>
+                      </div>
+                      <h2 className="text-2xl font-bold text-slate-900">{selectedProblem.title}</h2>
+                    </div>
+                    <div className="text-right text-xs text-slate-500 font-mono">
+                      <div>
+                        Giới hạn thời gian: <strong className="text-slate-800">{selectedProblem.time_limit_ms} ms</strong>
+                      </div>
+                      <div>
+                        Giới hạn bộ nhớ: <strong className="text-slate-800">{selectedProblem.memory_limit_mb} MB</strong>
+                      </div>
+                      <div>
+                        Chế độ chấm: <strong className="text-slate-800">{selectedProblem.judge_mode}</strong>
                       </div>
                     </div>
+                  </div>
 
-                    <textarea
-                      value={submissionCode}
-                      onChange={(e) => setSubmissionCode(e.target.value)}
-                      rows={8}
-                      className="w-full font-mono text-xs p-3 bg-slate-900 text-slate-100 rounded border border-slate-300 focus:outline-hidden focus:ring-1 focus:ring-sky-500"
-                      placeholder="Dán mã nguồn tại đây..."
-                    />
+                  <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {selectedProblem.statement_markdown}
+                    </ReactMarkdown>
+                  </div>
+                </div>
 
-                    <div className="mt-3 flex justify-between items-center">
-                      <span className="text-xs text-slate-500 font-mono">
-                        Giới hạn: {selectedProblem.time_limit_ms}ms &bull; {selectedProblem.memory_limit_mb}MB
-                      </span>
-                      <button
-                        onClick={handleCodeSubmit}
-                        disabled={isSubmitting}
-                        className="px-4 py-2 bg-sky-600 text-white rounded font-medium text-xs hover:bg-sky-700 flex items-center gap-1.5 disabled:opacity-50"
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                      <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-slate-500 font-medium">Ngôn ngữ:</label>
+                      <select
+                        value={selectedLang}
+                        onChange={(e) => setSelectedLang(e.target.value)}
+                        className="text-xs border border-slate-300 rounded px-2.5 py-1 bg-white font-mono"
                       >
-                        <Send className="w-3.5 h-3.5" /> {isSubmitting ? 'Đang gửi...' : 'Gửi bài chấm'}
-                      </button>
+                        <option value="cpp20">C++20 (g++ -std=c++20 -O2)</option>
+                        <option value="pascal">Pascal (fpc -O2)</option>
+                        <option value="python3">Python 3 (python3 / pypy3)</option>
+                      </select>
                     </div>
                   </div>
-                </>
-              ) : (
-                <div className="bg-white p-8 rounded-lg border border-slate-200 text-center text-slate-500">
-                  Không tìm thấy bài tập được chọn.
+
+                  <textarea
+                    value={submissionCode}
+                    onChange={(e) => setSubmissionCode(e.target.value)}
+                    rows={8}
+                    className="w-full font-mono text-xs p-3 bg-slate-900 text-slate-100 rounded border border-slate-300 focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                    placeholder="Dán mã nguồn tại đây..."
+                  />
+
+                  <div className="mt-3 flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-mono">
+                      Giới hạn: {selectedProblem.time_limit_ms}ms &bull; {selectedProblem.memory_limit_mb}MB
+                    </span>
+                    <button
+                      onClick={handleCodeSubmit}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-sky-600 text-white rounded font-medium text-xs hover:bg-sky-700 flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" /> {isSubmitting ? 'Đang gửi...' : 'Gửi bài chấm'}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Danh sách bài tập (Full-width Problem Archive Table)
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">Kho bài tập lập trình thi đấu</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Chọn bài tập bất kỳ trong danh sách bên dưới để xem đề bài và làm bài nộp.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Tìm bài tập (mã hoặc tên)..."
+                        value={searchProblem}
+                        onChange={(e) => setSearchProblem(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded bg-white focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <select
+                      value={filterDiff}
+                      onChange={(e) => setFilterDiff(e.target.value)}
+                      className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white font-medium text-slate-700"
+                    >
+                      <option value="All">Tất cả độ khó</option>
+                      <option value="Easy">Easy (Dễ)</option>
+                      <option value="Medium">Medium (Vừa)</option>
+                      <option value="Hard">Hard (Khó)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3 w-28">Mã bài</th>
+                        <th className="p-3">Tên bài tập</th>
+                        <th className="p-3 w-28">Độ khó</th>
+                        <th className="p-3 w-36">Chế độ chấm</th>
+                        <th className="p-3 w-32">Thời gian</th>
+                        <th className="p-3 w-28">Bộ nhớ</th>
+                        <th className="p-3 w-32 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {filteredProblems.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-500">
+                            Không tìm thấy bài tập nào. Quản trị viên có thể thêm bài tập mới từ trang Admin.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProblems.map((prob) => (
+                          <tr
+                            key={prob.id}
+                            onClick={() => setSelectedProblem(prob)}
+                            className="hover:bg-slate-50 cursor-pointer transition"
+                          >
+                            <td className="p-3 font-mono font-bold text-sky-700">{prob.code}</td>
+                            <td className="p-3 font-medium text-slate-900">{prob.title}</td>
+                            <td className="p-3">
+                              <span
+                                className={`font-semibold px-2 py-0.5 rounded text-[11px] ${
+                                  prob.difficulty === 'Easy'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : prob.difficulty === 'Medium'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                }`}
+                              >
+                                {prob.difficulty}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-600 font-mono text-[11px]">{prob.judge_mode}</td>
+                            <td className="p-3 font-mono text-slate-600">{prob.time_limit_ms} ms</td>
+                            <td className="p-3 font-mono text-slate-600">{prob.memory_limit_mb} MB</td>
+                            <td className="p-3 text-right">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProblem(prob);
+                                }}
+                                className="px-3 py-1 bg-sky-600 text-white rounded text-xs font-medium hover:bg-sky-700"
+                              >
+                                Xem đề &amp; Làm bài
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
