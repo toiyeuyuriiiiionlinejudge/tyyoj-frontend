@@ -19,6 +19,10 @@ import {
   CheckCircle2,
   XCircle,
   Terminal,
+  LogIn,
+  UserPlus,
+  LogOut,
+  RefreshCw,
 } from 'lucide-react';
 
 type TabType =
@@ -36,33 +40,105 @@ interface Problem {
   id: string;
   code: string;
   title: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  mode: 'Standard' | 'CustomChecker' | 'Interactive';
-  timeLimitMs: number;
-  memoryLimitMb: number;
-  statement: string;
+  difficulty: string;
+  statement_markdown: string;
+  time_limit_ms: number;
+  memory_limit_mb: number;
+  judge_mode: string;
+}
+
+interface Contest {
+  id: string;
+  title: string;
+  description: string;
+  start_time: string;
+  end_time: string;
+  rule_type: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  description: string;
+  member_count: number;
+  contests_count: number;
+}
+
+interface Blog {
+  id: string;
+  title: string;
+  author_name: string;
+  content_markdown: string;
+  created_at: string;
+}
+
+interface Wiki {
+  id: string;
+  title: string;
+  category: string;
+  content_markdown: string;
+  updated_at: string;
 }
 
 interface Submission {
   id: string;
-  user: string;
-  problemCode: string;
+  problem_code: string;
   language: string;
   verdict: string;
-  timeMs: number;
-  memoryKb: number;
-  submittedAt: string;
+  time_consumed_ms: number;
+  memory_consumed_kb: number;
+  created_at: string;
+}
+
+interface RouteEntry {
+  method: string;
+  path: string;
+  handler: string;
+  description: string;
+}
+
+interface JudgerWorker {
+  id: string;
+  name: string;
+  status: string;
+  state: string;
+  image: string;
 }
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [apiStatus, setApiStatus] = useState<string>('Checking...');
   const [verdicts, setVerdicts] = useState<string[]>([]);
-  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
-  const [submissionCode, setSubmissionCode] = useState<string>('// Solution here');
-  const [selectedLang, setSelectedLang] = useState<string>('cpp20');
 
-  useEffect(() => {
+  // Real Database Entities
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [wikis, setWikis] = useState<Wiki[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [routesCatalog, setRoutesCatalog] = useState<RouteEntry[]>([]);
+  const [judgerWorkers, setJudgerWorkers] = useState<JudgerWorker[]>([]);
+
+  // Submission Form State
+  const [submissionCode, setSubmissionCode] = useState<string>(
+    '#include <iostream>\n\nint main() {\n    long long a, b;\n    if (std::cin >> a >> b) {\n        std::cout << a + b << std::endl;\n    }\n    return 0;\n}'
+  );
+  const [selectedLang, setSelectedLang] = useState<string>('cpp20');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authUsername, setAuthUsername] = useState<string>('');
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [authMessage, setAuthMessage] = useState<string>('');
+
+  // Initial Real Data Fetch from Backend / PostgreSQL
+  const fetchData = () => {
     fetch('/health')
       .then((res) => res.text())
       .then((data) => setApiStatus(`Online (${data})`))
@@ -72,118 +148,151 @@ export const App: React.FC = () => {
       .then((res) => res.json())
       .then((data) => setVerdicts(data))
       .catch(() => setVerdicts([]));
+
+    fetch('/api/v1/problems')
+      .then((res) => res.json())
+      .then((data) => {
+        setProblems(data);
+        if (data.length > 0 && !selectedProblem) {
+          setSelectedProblem(data[0]);
+        }
+      })
+      .catch((err) => console.error('Error fetching problems:', err));
+
+    fetch('/api/v1/contests')
+      .then((res) => res.json())
+      .then((data) => setContests(data))
+      .catch((err) => console.error('Error fetching contests:', err));
+
+    fetch('/api/v1/organizations')
+      .then((res) => res.json())
+      .then((data) => setOrganizations(data))
+      .catch((err) => console.error('Error fetching orgs:', err));
+
+    fetch('/api/v1/blogs')
+      .then((res) => res.json())
+      .then((data) => setBlogs(data))
+      .catch((err) => console.error('Error fetching blogs:', err));
+
+    fetch('/api/v1/wikis')
+      .then((res) => res.json())
+      .then((data) => setWikis(data))
+      .catch((err) => console.error('Error fetching wikis:', err));
+
+    fetch('/api/v1/submissions')
+      .then((res) => res.json())
+      .then((data) => setSubmissions(data))
+      .catch((err) => console.error('Error fetching submissions:', err));
+
+    fetch('/api/v1/admin/routes')
+      .then((res) => res.json())
+      .then((data) => setRoutesCatalog(data))
+      .catch(() => setRoutesCatalog([]));
+
+    fetch('/api/v1/admin/judgers')
+      .then((res) => res.json())
+      .then((data) => setJudgerWorkers(data))
+      .catch(() => setJudgerWorkers([]));
+  };
+
+  useEffect(() => {
+    fetchData();
+    const storedUser = localStorage.getItem('tyyoj_username');
+    if (storedUser) {
+      setCurrentUser(storedUser);
+    }
+    const interval = setInterval(fetchData, 10000); // Live poll real DB state every 10s
+    return () => clearInterval(interval);
   }, []);
 
-  const sampleProblems: Problem[] = [
-    {
-      id: 'p-1001',
-      code: 'P1001',
-      title: 'A + B Problem',
-      difficulty: 'Easy',
-      mode: 'Standard',
-      timeLimitMs: 1000,
-      memoryLimitMb: 256,
-      statement: `### Bài toán A + B
-Cho hai số nguyên $a, b \\in \\mathbb{Z}$ thỏa mãn $-10^9 \\le a, b \\le 10^9$. Hãy tính giá trị của tổng $S = a + b$.
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthMessage('');
 
-**Định dạng đầu vào:** Một dòng duy nhất chứa hai số nguyên $a$ và $b$ cách nhau bởi khoảng trắng.
+    if (authMode === 'register') {
+      try {
+        const res = await fetch('/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: authUsername,
+            email: authEmail,
+            password: authPassword,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setAuthMessage('Đăng ký thành công! Email xác thực đã gửi qua Mailpit.');
+          setAuthMode('login');
+        } else {
+          setAuthMessage(`Lỗi: ${data.message || 'Không thể đăng ký'}`);
+        }
+      } catch (err: unknown) {
+        setAuthMessage(`Lỗi kết nối: ${(err as Error).message}`);
+      }
+    } else {
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username_or_email: authUsername,
+            password: authPassword,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('tyyoj_token', data.access_token);
+          localStorage.setItem('tyyoj_username', data.username);
+          setCurrentUser(data.username);
+          setShowAuthModal(false);
+          setAuthMessage('');
+        } else {
+          setAuthMessage('Sai tài khoản hoặc mật khẩu.');
+        }
+      } catch (err: unknown) {
+        setAuthMessage(`Lỗi đăng nhập: ${(err as Error).message}`);
+      }
+    }
+  };
 
-**Định dạng đầu ra:** In ra một số nguyên duy nhất là kết quả của $a + b$.
+  const handleLogout = () => {
+    localStorage.removeItem('tyyoj_token');
+    localStorage.removeItem('tyyoj_username');
+    setCurrentUser(null);
+  };
 
-**Ví dụ:**
-- Đầu vào: \`3 5\`
-- Đầu ra: \`8\`
-`,
-    },
-    {
-      id: 'p-1002',
-      code: 'P1002',
-      title: 'Dãy số Fibonacci modulo $10^9+7$',
-      difficulty: 'Medium',
-      mode: 'Standard',
-      timeLimitMs: 1500,
-      memoryLimitMb: 512,
-      statement: `### Dãy số Fibonacci
-Cho số nguyên dương $n$ ($1 \\le n \\le 10^{18}$). Hãy tính số Fibonacci thứ $n$:
-$$ F_0 = 0, \\quad F_1 = 1, \\quad F_n = F_{n-1} + F_{n-2} \\pmod{10^9+7} $$
+  const handleCodeSubmit = async () => {
+    if (!selectedProblem) return;
+    setIsSubmitting(true);
 
-**Định dạng đầu vào:** Một dòng chứa số nguyên $n$.
+    try {
+      const res = await fetch('/api/v1/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          problem_code: selectedProblem.code,
+          language: selectedLang,
+          source_code: submissionCode,
+        }),
+      });
 
-**Định dạng đầu ra:** Kết quả $F_n \\pmod{10^9+7}$.
-`,
-    },
-    {
-      id: 'p-1003',
-      code: 'P1003',
-      title: 'Đoán số bí mật (Interactive)',
-      difficulty: 'Hard',
-      mode: 'Interactive',
-      timeLimitMs: 2000,
-      memoryLimitMb: 256,
-      statement: `### Đoán số bí mật
-Hệ thống giám khảo giữ một số nguyên bí mật $X \\in [1, 10^9]$. Bạn được phép thực hiện tối đa $32$ truy vấn dạng:
-\`? Y\` (với $1 \\le Y \\le 10^9$).
-
-Giám khảo sẽ phản hồi:
-- \`<\`: nếu $X < Y$
-- \`>\`: nếu $X > Y$
-- \`=\`: nếu $X = Y$
-
-Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý luôn dùng \`fflush(stdout)\` hoặc \`std::cout << std::flush\`.
-`,
-    },
-  ];
-
-  const sampleSubmissions: Submission[] = [
-    {
-      id: 'sub-8921',
-      user: 'toiyeuyuriiiii',
-      problemCode: 'P1001',
-      language: 'C++20',
-      verdict: 'ACCEPTED',
-      timeMs: 15,
-      memoryKb: 1420,
-      submittedAt: 'Vừa xong',
-    },
-    {
-      id: 'sub-8920',
-      user: 'nmkdeveloper',
-      problemCode: 'P1003',
-      language: 'Python3',
-      verdict: 'ACCEPTED',
-      timeMs: 42,
-      memoryKb: 8900,
-      submittedAt: '2 phút trước',
-    },
-    {
-      id: 'sub-8919',
-      user: 'coder_guest',
-      problemCode: 'P1002',
-      language: 'Pascal',
-      verdict: 'TIME_LIMIT_EXCEEDED',
-      timeMs: 1510,
-      memoryKb: 3200,
-      submittedAt: '5 phút trước',
-    },
-  ];
-
-  const apiRoutesCatalog = [
-    { method: 'GET', path: '/health', handler: 'tyyoj_backend::health_check', desc: 'Trạng thái hoạt động server' },
-    { method: 'GET', path: '/api/v1/verdicts', handler: 'tyyoj_backend::list_verdicts', desc: 'Danh sách các verdict judging' },
-    { method: 'POST', path: '/api/v1/auth/register', handler: 'tyyoj_backend::auth::register', desc: 'Đăng ký tài khoản người dùng' },
-    { method: 'POST', path: '/api/v1/auth/login', handler: 'tyyoj_backend::auth::login', desc: 'Xác thực và cấp phát JWT token' },
-    { method: 'GET', path: '/api/v1/problems', handler: 'tyyoj_backend::problem::list', desc: 'Lấy danh sách bài tập' },
-    { method: 'GET', path: '/api/v1/problems/{id}', handler: 'tyyoj_backend::problem::get', desc: 'Chi tiết bài tập (Markdown + KaTeX)' },
-    { method: 'POST', path: '/api/v1/submissions', handler: 'tyyoj_backend::submission::create', desc: 'Nộp bài giải và xếp hàng Redis' },
-    { method: 'GET', path: '/api/v1/admin/judgers', handler: 'tyyoj_backend::docker::list_workers', desc: 'Quản lý danh sách Judger Podman' },
-    { method: 'POST', path: '/api/v1/admin/judgers', handler: 'tyyoj_backend::docker::create_worker', desc: 'Khởi tạo persistent Judger container' },
-  ];
-
-  const activeProblem = selectedProblem || sampleProblems[0];
+      if (res.ok) {
+        fetchData();
+        setActiveTab('submissions');
+      } else {
+        alert('Nộp bài thất bại. Vui lòng kiểm tra mã nguồn hoặc giới hạn rate limit.');
+      }
+    } catch (err) {
+      alert(`Lỗi nộp bài: ${err}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      {/* Navbar Header */}
+      {/* Header Navigation */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -199,7 +308,6 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
               </div>
             </div>
 
-            {/* Nav Menu */}
             <nav className="hidden md:flex items-center space-x-1 text-sm font-medium">
               <button
                 onClick={() => setActiveTab('home')}
@@ -215,7 +323,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'problems' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <BookOpen className="w-4 h-4" /> Bài tập
+                <BookOpen className="w-4 h-4" /> Bài tập ({problems.length})
               </button>
               <button
                 onClick={() => setActiveTab('contests')}
@@ -223,7 +331,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'contests' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Trophy className="w-4 h-4" /> Kỳ thi
+                <Trophy className="w-4 h-4" /> Kỳ thi ({contests.length})
               </button>
               <button
                 onClick={() => setActiveTab('organizations')}
@@ -231,7 +339,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'organizations' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Users className="w-4 h-4" /> Tổ chức
+                <Users className="w-4 h-4" /> Tổ chức ({organizations.length})
               </button>
               <button
                 onClick={() => setActiveTab('submissions')}
@@ -239,7 +347,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'submissions' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Send className="w-4 h-4" /> Bài nộp
+                <Send className="w-4 h-4" /> Bài nộp ({submissions.length})
               </button>
               <button
                 onClick={() => setActiveTab('blogs')}
@@ -247,7 +355,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'blogs' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <FileText className="w-4 h-4" /> Blogs
+                <FileText className="w-4 h-4" /> Blogs ({blogs.length})
               </button>
               <button
                 onClick={() => setActiveTab('wiki')}
@@ -255,7 +363,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   activeTab === 'wiki' ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <HelpCircle className="w-4 h-4" /> Wiki
+                <HelpCircle className="w-4 h-4" /> Wiki ({wikis.length})
               </button>
               <button
                 onClick={() => setActiveTab('about')}
@@ -277,17 +385,37 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
               </button>
             </nav>
 
-            <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono">
                 <Activity className="w-3 h-3 text-emerald-600" />
                 API: {apiStatus}
               </span>
+
+              {currentUser ? (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-700">{currentUser}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 text-slate-500 hover:text-red-600 rounded hover:bg-slate-100"
+                    title="Đăng xuất"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="px-3 py-1.5 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700 flex items-center gap-1"
+                >
+                  <LogIn className="w-3.5 h-3.5" /> Đăng nhập
+                </button>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Body */}
+      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         {/* VIEW: Trang chủ (Home) */}
         {activeTab === 'home' && (
@@ -295,7 +423,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
             <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
               <div className="max-w-3xl">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 mb-4">
-                  🚀 Hệ thống Online Judge thế hệ mới
+                  🚀 Hệ thống Online Judge thế hệ mới (PostgreSQL 17 Real Persistence)
                 </span>
                 <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">
                   Nền tảng chấm bài Lập trình thi đấu an toàn, tin cậy &amp; tốc độ
@@ -303,46 +431,47 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                 <p className="mt-4 text-base text-slate-600 leading-relaxed">
                   Toi Yêu Yuri Online Judge cung cấp hệ thống worker chấm mã nguồn độc lập chạy liên tục trên Podman,
                   hỗ trợ định dạng toán học phong phú với Markdown + KaTeX, cùng 3 chế độ chấm toàn diện: Standard,
-                  Custom Checker (testlib.h) và Interactive pipe judging.
+                  Custom Checker (testlib.h) và Interactive pipe judging. Dữ liệu bài tập, kỳ thi và bài nộp được lưu trữ
+                  thực tế 100% trong PostgreSQL 17.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button
                     onClick={() => setActiveTab('problems')}
                     className="px-5 py-2.5 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 shadow-xs flex items-center gap-2"
                   >
-                    <BookOpen className="w-4 h-4" /> Bắt đầu giải bài
+                    <BookOpen className="w-4 h-4" /> Bắt đầu giải bài ({problems.length})
                   </button>
                   <button
                     onClick={() => setActiveTab('contests')}
                     className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 flex items-center gap-2"
                   >
-                    <Trophy className="w-4 h-4" /> Xem kỳ thi
+                    <Trophy className="w-4 h-4" /> Xem kỳ thi ({contests.length})
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Quick Stat Cards */}
+            {/* Live Database Statistics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-lg border border-slate-200">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài tập</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1">128+</div>
-                <div className="text-emerald-600 text-xs mt-1">C++, Pascal, Python3</div>
+              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài tập (DB)</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1">{problems.length}</div>
+                <div className="text-emerald-600 text-xs mt-1">Standard &bull; Interactive</div>
               </div>
-              <div className="bg-white p-5 rounded-lg border border-slate-200">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Kỳ thi</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1">12</div>
+              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Kỳ thi (DB)</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1">{contests.length}</div>
                 <div className="text-sky-600 text-xs mt-1">ICPC &amp; IOI Rule</div>
               </div>
-              <div className="bg-white p-5 rounded-lg border border-slate-200">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài nộp</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1">8,921</div>
-                <div className="text-slate-500 text-xs mt-1">Live queue via Redis</div>
+              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài nộp (DB)</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1">{submissions.length}</div>
+                <div className="text-slate-500 text-xs mt-1">Redis Queue Polling</div>
               </div>
-              <div className="bg-white p-5 rounded-lg border border-slate-200">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Podman Judgers</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1">4 Online</div>
-                <div className="text-emerald-600 text-xs mt-1">Persistent workers</div>
+              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Podman Workers</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1">{judgerWorkers.length || 1} Active</div>
+                <div className="text-emerald-600 text-xs mt-1">Persistent Engine API</div>
               </div>
             </div>
           </div>
@@ -351,30 +480,29 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
         {/* VIEW: Bài tập (Problems) */}
         {activeTab === 'problems' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Problem List (col-4) */}
             <div className="lg:col-span-4 space-y-3">
-              <div className="bg-white p-4 rounded-lg border border-slate-200">
-                <h3 className="font-semibold text-slate-900 text-sm mb-3">Danh sách bài tập</h3>
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs">
+                <h3 className="font-semibold text-slate-900 text-sm mb-3">Bài tập từ PostgreSQL</h3>
                 <div className="space-y-2">
-                  {sampleProblems.map((prob) => (
+                  {problems.map((prob) => (
                     <div
                       key={prob.id}
                       onClick={() => setSelectedProblem(prob)}
                       className={`p-3 rounded-md border cursor-pointer transition ${
-                        activeProblem.id === prob.id
+                        selectedProblem?.id === prob.id
                           ? 'border-sky-500 bg-sky-50/50'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-mono font-bold text-sky-700">{prob.code}</span>
-                        <span className="text-slate-500">{prob.mode}</span>
+                        <span className="text-slate-500">{prob.judge_mode}</span>
                       </div>
                       <div className="font-medium text-slate-900 text-sm mt-1">{prob.title}</div>
                       <div className="flex gap-2 text-xs text-slate-500 mt-2">
-                        <span>{prob.timeLimitMs}ms</span>
+                        <span>{prob.time_limit_ms}ms</span>
                         <span>&bull;</span>
-                        <span>{prob.memoryLimitMb}MB</span>
+                        <span>{prob.memory_limit_mb}MB</span>
                         <span>&bull;</span>
                         <span
                           className={`font-semibold ${
@@ -394,68 +522,78 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
               </div>
             </div>
 
-            {/* Problem Detail & Submission (col-8) */}
             <div className="lg:col-span-8 space-y-6">
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
-                  <div>
-                    <span className="text-xs font-mono font-bold text-sky-600">{activeProblem.code}</span>
-                    <h2 className="text-xl font-bold text-slate-900">{activeProblem.title}</h2>
+              {selectedProblem && (
+                <>
+                  <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                    <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
+                      <div>
+                        <span className="text-xs font-mono font-bold text-sky-600">{selectedProblem.code}</span>
+                        <h2 className="text-xl font-bold text-slate-900">{selectedProblem.title}</h2>
+                      </div>
+                      <div className="text-right text-xs text-slate-500 font-mono">
+                        <div>
+                          Giới hạn thời gian: <strong className="text-slate-800">{selectedProblem.time_limit_ms} ms</strong>
+                        </div>
+                        <div>
+                          Giới hạn bộ nhớ: <strong className="text-slate-800">{selectedProblem.memory_limit_mb} MB</strong>
+                        </div>
+                        <div>
+                          Chế độ chấm: <strong className="text-slate-800">{selectedProblem.judge_mode}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        {selectedProblem.statement_markdown}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                  <div className="text-right text-xs text-slate-500 font-mono">
-                    <div>Giới hạn thời gian: <strong className="text-slate-800">{activeProblem.timeLimitMs} ms</strong></div>
-                    <div>Giới hạn bộ nhớ: <strong className="text-slate-800">{activeProblem.memoryLimitMb} MB</strong></div>
-                    <div>Chế độ chấm: <strong className="text-slate-800">{activeProblem.mode}</strong></div>
+
+                  {/* Submission Form */}
+                  <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                        <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải (Thực tế vào Database)
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-slate-500 font-medium">Ngôn ngữ:</label>
+                        <select
+                          value={selectedLang}
+                          onChange={(e) => setSelectedLang(e.target.value)}
+                          className="text-xs border border-slate-300 rounded px-2.5 py-1 bg-white font-mono"
+                        >
+                          <option value="cpp20">C++20 (g++ -std=c++20 -O2)</option>
+                          <option value="pascal">Pascal (fpc -O2)</option>
+                          <option value="python3">Python 3 (python3 / pypy3)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <textarea
+                      value={submissionCode}
+                      onChange={(e) => setSubmissionCode(e.target.value)}
+                      rows={8}
+                      className="w-full font-mono text-xs p-3 bg-slate-900 text-slate-100 rounded border border-slate-300 focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                      placeholder="Dán mã nguồn tại đây..."
+                    />
+
+                    <div className="mt-3 flex justify-between items-center">
+                      <span className="text-xs text-slate-500 font-mono">
+                        Giới hạn: {selectedProblem.time_limit_ms}ms &bull; {selectedProblem.memory_limit_mb}MB
+                      </span>
+                      <button
+                        onClick={handleCodeSubmit}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-sky-600 text-white rounded font-medium text-xs hover:bg-sky-700 flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Send className="w-3.5 h-3.5" /> {isSubmitting ? 'Đang gửi...' : 'Gửi bài chấm'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="prose max-w-none text-slate-700 text-sm leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                    {activeProblem.statement}
-                  </ReactMarkdown>
-                </div>
-              </div>
-
-              {/* Code Submission Box */}
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500 font-medium">Ngôn ngữ:</label>
-                    <select
-                      value={selectedLang}
-                      onChange={(e) => setSelectedLang(e.target.value)}
-                      className="text-xs border border-slate-300 rounded px-2.5 py-1 bg-white font-mono"
-                    >
-                      <option value="cpp20">C++20 (g++ -std=c++20 -O2)</option>
-                      <option value="pascal">Pascal (fpc -O2)</option>
-                      <option value="python3">Python 3 (python3 / pypy3)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <textarea
-                  value={submissionCode}
-                  onChange={(e) => setSubmissionCode(e.target.value)}
-                  rows={8}
-                  className="w-full font-mono text-xs p-3 bg-slate-900 text-slate-100 rounded border border-slate-300 focus:outline-hidden focus:ring-1 focus:ring-sky-500"
-                  placeholder="Dán mã nguồn tại đây..."
-                />
-
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={() => {
-                      alert(`Đã nộp bài cho ${activeProblem.code} (${selectedLang}) thành công!`);
-                      setActiveTab('submissions');
-                    }}
-                    className="px-4 py-2 bg-sky-600 text-white rounded font-medium text-xs hover:bg-sky-700 flex items-center gap-1.5"
-                  >
-                    <Send className="w-3.5 h-3.5" /> Gửi bài chấm
-                  </button>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -463,32 +601,26 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
         {/* VIEW: Kỳ thi (Contests) */}
         {activeTab === 'contests' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu</h2>
-              <p className="text-slate-500 text-sm mt-1">Tham gia các kỳ thi chính thức theo thể thức ICPC và IOI.</p>
-
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+              <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu (Từ PostgreSQL)</h2>
               <div className="mt-6 divide-y divide-slate-200">
-                <div className="py-4 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Đang diễn ra</span>
-                    <h3 className="text-base font-semibold text-slate-900 mt-1">Toi Yêu Yuri Contest 01 (ICPC Rules)</h3>
-                    <p className="text-xs text-slate-500 mt-1">Thời gian: 180 phút &bull; 6 bài tập &bull; 142 thí sinh tham gia</p>
+                {contests.map((c) => (
+                  <div key={c.id} className="py-4 flex justify-between items-center">
+                    <div>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                        {c.rule_type} Rules
+                      </span>
+                      <h3 className="text-base font-semibold text-slate-900 mt-1">{c.title}</h3>
+                      <p className="text-xs text-slate-600 mt-1">{c.description}</p>
+                      <div className="text-xs text-slate-400 mt-2 font-mono">
+                        Bắt đầu: {new Date(c.start_time).toLocaleString()} &bull; Kết thúc: {new Date(c.end_time).toLocaleString()}
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700">
+                      Chi tiết kỳ thi
+                    </button>
                   </div>
-                  <button className="px-4 py-2 bg-emerald-600 text-white rounded text-xs font-semibold hover:bg-emerald-700">
-                    Vào thi ngay
-                  </button>
-                </div>
-
-                <div className="py-4 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">Sắp diễn ra</span>
-                    <h3 className="text-base font-semibold text-slate-900 mt-1">Yuri Grand Contest #2 (IOI Rules)</h3>
-                    <p className="text-xs text-slate-500 mt-1">Bắt đầu: 19:00 Chủ Nhật &bull; 300 phút &bull; Chấm điểm theo subtask</p>
-                  </div>
-                  <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded text-xs font-semibold hover:bg-slate-200">
-                    Đăng ký tham gia
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -497,28 +629,18 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
         {/* VIEW: Tổ chức (Organizations) */}
         {activeTab === 'organizations' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200">
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
               <h2 className="text-xl font-bold text-slate-900">Các câu lạc bộ &amp; Tổ chức đối tác</h2>
-              <p className="text-slate-500 text-sm mt-1">Nơi kết nối các trường đại học, trường chuyên và cộng đồng thuật toán.</p>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                  <div className="font-bold text-slate-900 text-base">VNOI Community</div>
-                  <p className="text-xs text-slate-600 mt-1">Cộng đồng Lập trình Thi đấu Việt Nam</p>
-                  <div className="text-xs text-slate-500 mt-3 font-mono">15,000+ thành viên &bull; 240 kỳ thi</div>
-                </div>
-
-                <div className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                  <div className="font-bold text-slate-900 text-base">VNU-UET Algorithms Club</div>
-                  <p className="text-xs text-slate-600 mt-1">Đại học Công nghệ - ĐHQGHN</p>
-                  <div className="text-xs text-slate-500 mt-3 font-mono">450+ thành viên &bull; 18 kỳ thi</div>
-                </div>
-
-                <div className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                  <div className="font-bold text-slate-900 text-base">Yuri CP Enthusiasts</div>
-                  <p className="text-xs text-slate-600 mt-1">CLB Lập trình thi đấu Toi Yêu Yuri</p>
-                  <div className="text-xs text-slate-500 mt-3 font-mono">1,200+ thành viên &bull; 12 kỳ thi</div>
-                </div>
+                {organizations.map((org) => (
+                  <div key={org.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                    <div className="font-bold text-slate-900 text-base">{org.name}</div>
+                    <p className="text-xs text-slate-600 mt-1">{org.description}</p>
+                    <div className="text-xs text-slate-500 mt-3 font-mono">
+                      {org.member_count} thành viên &bull; {org.contests_count} kỳ thi
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -527,10 +649,15 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
         {/* VIEW: Bài nộp (Submissions) */}
         {activeTab === 'submissions' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200">
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">Danh sách bài nộp gần đây</h2>
-                <span className="text-xs text-slate-500 font-mono">Cập nhật theo thời gian thực qua Redis</span>
+                <h2 className="text-xl font-bold text-slate-900">Danh sách bài nộp từ PostgreSQL</h2>
+                <button
+                  onClick={fetchData}
+                  className="px-2.5 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100 flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> Làm mới
+                </button>
               </div>
 
               <div className="border border-slate-200 rounded overflow-hidden">
@@ -538,7 +665,6 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-3">Mã nộp</th>
-                      <th className="p-3">Người nộp</th>
                       <th className="p-3">Bài tập</th>
                       <th className="p-3">Ngôn ngữ</th>
                       <th className="p-3">Kết quả (Verdict)</th>
@@ -548,35 +674,48 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {sampleSubmissions.map((sub) => (
-                      <tr key={sub.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-medium text-slate-900">{sub.id}</td>
-                        <td className="p-3 font-medium text-sky-600">{sub.user}</td>
-                        <td className="p-3 font-bold font-mono">{sub.problemCode}</td>
-                        <td className="p-3">{sub.language}</td>
-                        <td className="p-3">
-                          {sub.verdict === 'ACCEPTED' ? (
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> ACCEPTED
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 font-bold text-red-600">
-                              <XCircle className="w-3.5 h-3.5" /> {sub.verdict}
-                            </span>
-                          )}
+                    {submissions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-4 text-center text-slate-500">
+                          Chưa có bài nộp nào. Hãy thử nộp một bài giải!
                         </td>
-                        <td className="p-3 font-mono">{sub.timeMs} ms</td>
-                        <td className="p-3 font-mono">{sub.memoryKb} KB</td>
-                        <td className="p-3 text-slate-500">{sub.submittedAt}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      submissions.map((sub) => (
+                        <tr key={sub.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono font-medium text-slate-900">{sub.id.substring(0, 8)}...</td>
+                          <td className="p-3 font-bold font-mono text-sky-600">{sub.problem_code}</td>
+                          <td className="p-3">{sub.language}</td>
+                          <td className="p-3">
+                            {sub.verdict === 'Accepted' ? (
+                              <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> ACCEPTED
+                              </span>
+                            ) : sub.verdict === 'Pending' || sub.verdict === 'Running' || sub.verdict === 'Compiling' ? (
+                              <span className="inline-flex items-center gap-1 font-bold text-amber-600">
+                                <Activity className="w-3.5 h-3.5 animate-spin" /> {sub.verdict}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 font-bold text-red-600">
+                                <XCircle className="w-3.5 h-3.5" /> {sub.verdict}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 font-mono">{sub.time_consumed_ms} ms</td>
+                          <td className="p-3 font-mono">{sub.memory_consumed_kb} KB</td>
+                          <td className="p-3 text-slate-500 font-mono">
+                            {new Date(sub.created_at).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
 
               {/* Supported Verdicts list */}
               <div className="mt-4 pt-4 border-t border-slate-200">
-                <span className="text-xs text-slate-500 font-medium">Các trạng thái verdict hỗ trợ: </span>
+                <span className="text-xs text-slate-500 font-medium">Trạng thái verdict chuẩn trong hệ thống: </span>
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {verdicts.map((v) => (
                     <span key={v} className="bg-slate-100 text-slate-700 text-[11px] font-mono px-2 py-0.5 rounded border border-slate-200">
@@ -589,10 +728,50 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
           </div>
         )}
 
+        {/* VIEW: Blogs */}
+        {activeTab === 'blogs' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+              <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức (Từ PostgreSQL)</h2>
+              <div className="mt-6 space-y-4">
+                {blogs.map((b) => (
+                  <article key={b.id} className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
+                    <div className="text-xs text-slate-500">
+                      {new Date(b.created_at).toLocaleDateString()} &bull; bởi {b.author_name}
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 mt-1">{b.title}</h3>
+                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{b.content_markdown}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW: Wiki */}
+        {activeTab === 'wiki' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+              <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki (Từ PostgreSQL)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                {wikis.map((w) => (
+                  <div key={w.id} className="p-4 border border-slate-200 rounded-lg">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                      {w.category}
+                    </span>
+                    <h3 className="font-bold text-sm text-slate-900 mt-2">{w.title}</h3>
+                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{w.content_markdown}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* VIEW: Về chúng mình (About Us) */}
         {activeTab === 'about' && (
           <div className="space-y-6">
-            <div className="bg-white p-8 rounded-lg border border-slate-200">
+            <div className="bg-white p-8 rounded-lg border border-slate-200 shadow-xs">
               <h2 className="text-2xl font-bold text-slate-900">Về dự án Toi Yêu Yuri Online Judge</h2>
               <p className="text-slate-600 text-sm mt-2 leading-relaxed">
                 <strong>Toi Yêu Yuri Online Judge (`tyyoj`)</strong> là nền tảng chấm bài trực tuyến chuyên dụng cho Lập trình Thi đấu
@@ -613,9 +792,9 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   <h3 className="font-bold text-slate-900 text-sm">Hạ tầng Công nghệ</h3>
                   <ul className="text-xs text-slate-600 mt-2 space-y-1">
                     <li>&bull; <strong>Core API:</strong> Rust (Axum, Tokio, SQLx, Lettre, Bollard)</li>
-                    <li>&bull; <strong>Hộp cát (Sandbox):</strong> C++20 Linux namespaces, cgroups v2, seccomp</li>
-                    <li>&bull; <strong>Quản lý Worker:</strong> Podman Engine Socket API (`podman.sock`)</li>
-                    <li>&bull; <strong>Giao diện:</strong> React 19 + TypeScript + Vite + TailwindCSS</li>
+                    <li>&bull; <strong>Cơ sở dữ liệu:</strong> PostgreSQL 17 + Redis 8</li>
+                    <li>&bull; <strong>Quản lý Worker:</strong> Podman Engine Socket API (`/run/podman/podman.sock`)</li>
+                    <li>&bull; <strong>Reverse Proxy:</strong> Nginx cổng 80 với Unified API Routing (`/api/v1/*`)</li>
                   </ul>
                 </div>
               </div>
@@ -623,61 +802,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
           </div>
         )}
 
-        {/* VIEW: Blogs */}
-        {activeTab === 'blogs' && (
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức (Blogs)</h2>
-              <div className="mt-6 space-y-4">
-                <article className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
-                  <div className="text-xs text-slate-500">14 Tháng 11, 2026 &bull; bởi toiyeuyuriiiii</div>
-                  <h3 className="text-base font-bold text-slate-900 mt-1">Chào mừng bạn đến với Toi Yêu Yuri Online Judge</h3>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                    Giới thiệu nền tảng chấm bài thi đấu trực tuyến hoàn toàn mới với kiến trúc Podman daemon và hỗ trợ đầy đủ công thức toán KaTeX.
-                  </p>
-                </article>
-
-                <article className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
-                  <div className="text-xs text-slate-500">12 Tháng 11, 2026 &bull; bởi nmkdeveloper</div>
-                  <h3 className="text-base font-bold text-slate-900 mt-1">Kỹ thuật giải bài tập tương tác (Interactive Problems)</h3>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                    Hướng dẫn chi tiết cách đọc/ghi qua đường ống (POSIX pipes) và cách phòng tránh lỗi quá thời gian nhàn rỗi (IDLENESS_LIMIT_EXCEEDED).
-                  </p>
-                </article>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW: Wiki */}
-        {activeTab === 'wiki' && (
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <div className="p-4 border border-slate-200 rounded-lg">
-                  <h3 className="font-bold text-sm text-slate-900">1. Quy chuẩn biên dịch (Compiler Flags)</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1 font-mono">
-                    <li>&bull; C++20: g++ -std=c++20 -O2</li>
-                    <li>&bull; Free Pascal: fpc -O2</li>
-                    <li>&bull; Python: python3 / pypy3</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 border border-slate-200 rounded-lg">
-                  <h3 className="font-bold text-sm text-slate-900">2. Ba chế độ chấm (Judge Modes)</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1">
-                    <li>&bull; <strong>Standard:</strong> So khớp token diff chuẩn.</li>
-                    <li>&bull; <strong>Custom Checker:</strong> Chấm bằng file testlib.h.</li>
-                    <li>&bull; <strong>Interactive:</strong> Giao tiếp 2 chiều qua pipe.</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW: Quản trị Admin (Admin Dashboard: Routes, APIs, Podman Judgers) */}
+        {/* VIEW: Quản trị Admin (Real Route Registry & Podman Judgers) */}
         {activeTab === 'admin' && (
           <div className="space-y-8">
             <div className="bg-white p-6 rounded-lg border border-purple-200 shadow-xs">
@@ -687,7 +812,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                     <Shield className="w-5 h-5 text-purple-600" /> Trung tâm Quản trị Toàn diện (Admin Dashboard)
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Giám sát toàn bộ API endpoints, điều phối router và quản lý đội ngũ worker Podman Judger.
+                    Toàn bộ Route Catalog &amp; API thực tế từ Axum Backend và Container thực tế từ Podman Engine.
                   </p>
                 </div>
                 <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-md">
@@ -695,29 +820,29 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                 </span>
               </div>
 
-              {/* SECTION: Route & API Management */}
+              {/* Real Route & API Catalog */}
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                    <Terminal className="w-4 h-4 text-purple-600" /> Quản lý Danh mục Route &amp; API Endpoints
+                    <Terminal className="w-4 h-4 text-purple-600" /> Quản lý Danh mục Route &amp; API Endpoints ({routesCatalog.length})
                   </h3>
-                  <span className="text-xs text-slate-500 font-mono">Unified Domain: /api/v1/*</span>
+                  <span className="text-xs text-slate-500 font-mono">Unified Ingress: /api/v1/* &amp; /health</span>
                 </div>
 
                 <div className="border border-slate-200 rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                       <tr>
-                        <th className="p-2.5">Phương thức</th>
-                        <th className="p-2.5">Đường dẫn Route</th>
-                        <th className="p-2.5">Mô tả chức năng</th>
-                        <th className="p-2.5">Handler nội bộ</th>
+                        <th className="p-2.5">Method</th>
+                        <th className="p-2.5">Đường dẫn</th>
+                        <th className="p-2.5">Mô tả</th>
+                        <th className="p-2.5">Handler</th>
                         <th className="p-2.5">Trạng thái</th>
-                        <th className="p-2.5 text-right">Thao tác</th>
+                        <th className="p-2.5 text-right">Test Ping</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {apiRoutesCatalog.map((r, idx) => (
+                      {routesCatalog.map((r, idx) => (
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="p-2.5 font-mono font-bold">
                             <span
@@ -733,7 +858,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                             </span>
                           </td>
                           <td className="p-2.5 font-mono text-slate-900 font-medium">{r.path}</td>
-                          <td className="p-2.5 text-slate-600">{r.desc}</td>
+                          <td className="p-2.5 text-slate-600">{r.description}</td>
                           <td className="p-2.5 font-mono text-[11px] text-slate-500">{r.handler}</td>
                           <td className="p-2.5">
                             <span className="text-emerald-700 font-semibold text-[11px]">ACTIVE</span>
@@ -741,13 +866,13 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                           <td className="p-2.5 text-right">
                             <button
                               onClick={() => {
-                                fetch(r.path.replace('{id}', 'test'))
+                                fetch(r.path.replace('{id_or_code}', 'P1001'))
                                   .then((res) => alert(`Test ${r.path} -> HTTP ${res.status}`))
                                   .catch((err) => alert(`Test ${r.path} -> ${err.message}`));
                               }}
                               className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-medium"
                             >
-                              Kiểm tra
+                              Ping
                             </button>
                           </td>
                         </tr>
@@ -757,17 +882,17 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                 </div>
               </div>
 
-              {/* SECTION: Podman Judger Fleet Management */}
+              {/* Real Podman Judger Container Management */}
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                    <Server className="w-4 h-4 text-purple-600" /> Quản lý Hạm đội Judger Podman (Persistent Workers)
+                    <Server className="w-4 h-4 text-purple-600" /> Container Podman qua Socket API ({judgerWorkers.length})
                   </h3>
                   <button
-                    onClick={() => alert('Yêu cầu khởi tạo Judger mới đã gửi tới Podman Engine socket!')}
+                    onClick={() => alert('Yêu cầu khởi tạo Judger đã gửi tới Podman Engine socket!')}
                     className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs font-semibold hover:bg-purple-700 flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Thêm Worker Judger
+                    <Plus className="w-3.5 h-3.5" /> Thêm Worker
                   </button>
                 </div>
 
@@ -775,34 +900,42 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                       <tr>
-                        <th className="p-2.5">Worker ID</th>
+                        <th className="p-2.5">Tên Container</th>
                         <th className="p-2.5">Container ID</th>
+                        <th className="p-2.5">Image</th>
                         <th className="p-2.5">Trạng thái</th>
-                        <th className="p-2.5">Heartbeat</th>
-                        <th className="p-2.5">Tải CPU / RAM</th>
-                        <th className="p-2.5 text-right">Hành động</th>
+                        <th className="p-2.5 text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      <tr>
-                        <td className="p-2.5 font-mono font-medium text-slate-900">judger-persistent-01</td>
-                        <td className="p-2.5 font-mono text-[11px] text-slate-500">podman-c102a9ff</td>
-                        <td className="p-2.5">
-                          <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> ONLINE
-                          </span>
-                        </td>
-                        <td className="p-2.5 text-slate-600 text-[11px]">Vừa xong (5s/lần)</td>
-                        <td className="p-2.5 font-mono text-[11px]">CPU: 0.2% &bull; 64MB</td>
-                        <td className="p-2.5 text-right">
-                          <button
-                            onClick={() => alert('Đã gửi tín hiệu dừng tới worker judger-persistent-01!')}
-                            className="text-red-600 hover:text-red-800 font-medium text-[11px]"
-                          >
-                            Dừng worker
-                          </button>
-                        </td>
-                      </tr>
+                      {judgerWorkers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-3 text-center text-slate-500 font-mono text-[11px]">
+                            Đang kết nối Podman Socket (/run/podman/podman.sock)...
+                          </td>
+                        </tr>
+                      ) : (
+                        judgerWorkers.map((w, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-mono font-medium text-slate-900">{w.name}</td>
+                            <td className="p-2.5 font-mono text-[11px] text-slate-500">{w.id.substring(0, 12)}</td>
+                            <td className="p-2.5 text-slate-600 font-mono text-[11px]">{w.image}</td>
+                            <td className="p-2.5">
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {w.status}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-right">
+                              <button
+                                onClick={() => alert(`Dừng worker ${w.name}`)}
+                                className="text-red-600 hover:text-red-800 font-medium text-[11px]"
+                              >
+                                Dừng
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -811,6 +944,95 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
           </div>
         )}
       </main>
+
+      {/* Auth Modal (Login / Register) */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-sm w-full p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg text-slate-900">
+                {authMode === 'login' ? 'Đăng nhập tài khoản' : 'Đăng ký tài khoản'}
+              </h3>
+              <button onClick={() => setShowAuthModal(false)} className="text-slate-400 hover:text-slate-600">
+                &times;
+              </button>
+            </div>
+
+            {authMessage && (
+              <div className="mb-4 p-2.5 bg-sky-50 text-sky-800 border border-sky-200 rounded text-xs">
+                {authMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleAuth} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Tên người dùng</label>
+                <input
+                  type="text"
+                  required
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
+                  className="w-full text-xs p-2 border border-slate-300 rounded focus:ring-1 focus:ring-sky-500"
+                  placeholder="username"
+                />
+              </div>
+
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full text-xs p-2 border border-slate-300 rounded focus:ring-1 focus:ring-sky-500"
+                    placeholder="user@example.com"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Mật khẩu (Argon2id)</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full text-xs p-2 border border-slate-300 rounded focus:ring-1 focus:ring-sky-500"
+                  placeholder="Tối thiểu 8 ký tự"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700 flex items-center justify-center gap-1.5 mt-4"
+              >
+                {authMode === 'login' ? <LogIn className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                {authMode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
+              </button>
+            </form>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 text-center text-xs text-slate-500">
+              {authMode === 'login' ? (
+                <span>
+                  Chưa có tài khoản?{' '}
+                  <button onClick={() => setAuthMode('register')} className="text-sky-600 font-semibold hover:underline">
+                    Đăng ký ngay
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Đã có tài khoản?{' '}
+                  <button onClick={() => setAuthMode('login')} className="text-sky-600 font-semibold hover:underline">
+                    Đăng nhập
+                  </button>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-500">
@@ -821,7 +1043,7 @@ Sau khi tìm được, in ra \`! X\` và kết thúc chương trình. Chú ý lu
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="text-slate-600">Light Mode</span>
             <span>&bull;</span>
-            <span className="text-slate-600">Nginx Port 80 Proxy</span>
+            <span className="text-slate-600">PostgreSQL 17 Real Persistence</span>
             <span>&bull;</span>
             <span className="text-slate-600">Podman Engine API</span>
           </div>
