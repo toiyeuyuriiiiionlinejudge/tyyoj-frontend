@@ -23,6 +23,7 @@ import {
   UserPlus,
   LogOut,
   RefreshCw,
+  FolderPlus,
 } from 'lucide-react';
 
 type TabType =
@@ -110,7 +111,7 @@ export const App: React.FC = () => {
   const [apiStatus, setApiStatus] = useState<string>('Checking...');
   const [verdicts, setVerdicts] = useState<string[]>([]);
 
-  // Real Database Entities
+  // Entities
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [contests, setContests] = useState<Contest[]>([]);
@@ -137,7 +138,36 @@ export const App: React.FC = () => {
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authMessage, setAuthMessage] = useState<string>('');
 
-  // Initial Real Data Fetch from Backend / PostgreSQL
+  // Admin Create Item State
+  const [adminAddCategory, setAdminAddCategory] = useState<'problem' | 'contest' | 'org' | 'blog' | 'wiki'>('problem');
+  const [adminMsg, setAdminMsg] = useState<string>('');
+
+  // Admin Form States
+  const [probCode, setProbCode] = useState('');
+  const [probTitle, setProbTitle] = useState('');
+  const [probDiff, setProbDiff] = useState('Medium');
+  const [probStatement, setProbStatement] = useState('### Đề bài mới\n\nNội dung bài tập với toán KaTeX: $a + b = c$.');
+  const [probTimeLimit, setProbTimeLimit] = useState(1000);
+  const [probMemLimit, setProbMemLimit] = useState(256);
+  const [probJudgeMode, setProbJudgeMode] = useState('Standard');
+  const [probSampleIn, setProbSampleIn] = useState('1 2\n');
+  const [probSampleOut, setProbSampleOut] = useState('3\n');
+
+  const [contestTitle, setContestTitle] = useState('');
+  const [contestDesc, setContestDesc] = useState('');
+  const [contestRule, setContestRule] = useState('ICPC');
+
+  const [orgName, setOrgName] = useState('');
+  const [orgDesc, setOrgDesc] = useState('');
+
+  const [blogTitle, setBlogTitle] = useState('');
+  const [blogAuthor, setBlogAuthor] = useState('');
+  const [blogContent, setBlogContent] = useState('');
+
+  const [wikiTitle, setWikiTitle] = useState('');
+  const [wikiCategory, setWikiCategory] = useState('Tutorial');
+  const [wikiContent, setWikiContent] = useState('');
+
   const fetchData = () => {
     fetch('/health')
       .then((res) => res.text())
@@ -201,7 +231,7 @@ export const App: React.FC = () => {
     if (storedUser) {
       setCurrentUser(storedUser);
     }
-    const interval = setInterval(fetchData, 10000); // Live poll real DB state every 10s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -222,7 +252,7 @@ export const App: React.FC = () => {
         });
         const data = await res.json();
         if (res.ok) {
-          setAuthMessage('Đăng ký thành công! Email xác thực đã gửi qua Mailpit.');
+          setAuthMessage('Đăng ký thành công! Email xác thực đã gửi.');
           setAuthMode('login');
         } else {
           setAuthMessage(`Lỗi: ${data.message || 'Không thể đăng ký'}`);
@@ -281,12 +311,115 @@ export const App: React.FC = () => {
         fetchData();
         setActiveTab('submissions');
       } else {
-        alert('Nộp bài thất bại. Vui lòng kiểm tra mã nguồn hoặc giới hạn rate limit.');
+        alert('Nộp bài thất bại. Vui lòng kiểm tra mã nguồn hoặc giới hạn tần suất.');
       }
     } catch (err) {
       alert(`Lỗi nộp bài: ${err}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Admin Handle Create
+  const handleAdminCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminMsg('');
+
+    try {
+      if (adminAddCategory === 'problem') {
+        const res = await fetch('/api/v1/problems', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: probCode,
+            title: probTitle,
+            difficulty: probDiff,
+            statement_markdown: probStatement,
+            time_limit_ms: Number(probTimeLimit),
+            memory_limit_mb: Number(probMemLimit),
+            judge_mode: probJudgeMode,
+            sample_input: probSampleIn,
+            sample_output: probSampleOut,
+          }),
+        });
+        if (res.ok) {
+          setAdminMsg(`Thêm bài tập ${probCode} thành công!`);
+          setProbCode('');
+          setProbTitle('');
+          fetchData();
+        } else {
+          setAdminMsg('Lỗi khi thêm bài tập.');
+        }
+      } else if (adminAddCategory === 'contest') {
+        const now = new Date();
+        const end = new Date(now.getTime() + 5 * 3600 * 1000);
+        const res = await fetch('/api/v1/contests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: contestTitle,
+            description: contestDesc,
+            start_time: now.toISOString(),
+            end_time: end.toISOString(),
+            rule_type: contestRule,
+          }),
+        });
+        if (res.ok) {
+          setAdminMsg(`Thêm kỳ thi ${contestTitle} thành công!`);
+          setContestTitle('');
+          setContestDesc('');
+          fetchData();
+        }
+      } else if (adminAddCategory === 'org') {
+        const res = await fetch('/api/v1/organizations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: orgName,
+            description: orgDesc,
+          }),
+        });
+        if (res.ok) {
+          setAdminMsg(`Thêm tổ chức ${orgName} thành công!`);
+          setOrgName('');
+          setOrgDesc('');
+          fetchData();
+        }
+      } else if (adminAddCategory === 'blog') {
+        const res = await fetch('/api/v1/blogs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: blogTitle,
+            author_name: blogAuthor || (currentUser || 'Admin'),
+            content_markdown: blogContent,
+          }),
+        });
+        if (res.ok) {
+          setAdminMsg(`Đăng bài viết ${blogTitle} thành công!`);
+          setBlogTitle('');
+          setBlogContent('');
+          fetchData();
+        }
+      } else if (adminAddCategory === 'wiki') {
+        const res = await fetch('/api/v1/wikis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: wikiTitle,
+            category: wikiCategory,
+            content_markdown: wikiContent,
+          }),
+        });
+        if (res.ok) {
+          setAdminMsg(`Thêm mục wiki ${wikiTitle} thành công!`);
+          setWikiTitle('');
+          setWikiContent('');
+          fetchData();
+        }
+      }
+    } catch (err: unknown) {
+      setAdminMsg(`Lỗi: ${(err as Error).message}`);
     }
   };
 
@@ -423,7 +556,7 @@ export const App: React.FC = () => {
             <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
               <div className="max-w-3xl">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 mb-4">
-                  🚀 Hệ thống Online Judge thế hệ mới (PostgreSQL 17 Real Persistence)
+                  🚀 Hệ thống Online Judge thế hệ mới
                 </span>
                 <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">
                   Nền tảng chấm bài Lập trình thi đấu an toàn, tin cậy &amp; tốc độ
@@ -431,8 +564,8 @@ export const App: React.FC = () => {
                 <p className="mt-4 text-base text-slate-600 leading-relaxed">
                   Toi Yêu Yuri Online Judge cung cấp hệ thống worker chấm mã nguồn độc lập chạy liên tục trên Podman,
                   hỗ trợ định dạng toán học phong phú với Markdown + KaTeX, cùng 3 chế độ chấm toàn diện: Standard,
-                  Custom Checker (testlib.h) và Interactive pipe judging. Dữ liệu bài tập, kỳ thi và bài nộp được lưu trữ
-                  thực tế 100% trong PostgreSQL 17.
+                  Custom Checker (testlib.h) và Interactive pipe judging. Toàn bộ nội dung bài tập, kỳ thi và thông báo
+                  được quản trị viên cập nhật trực tiếp từ bảng điều khiển Admin.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button
@@ -451,26 +584,26 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Live Database Statistics Cards */}
+            {/* Quick Stat Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài tập (DB)</div>
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài tập</div>
                 <div className="text-2xl font-bold text-slate-900 mt-1">{problems.length}</div>
-                <div className="text-emerald-600 text-xs mt-1">Standard &bull; Interactive</div>
+                <div className="text-emerald-600 text-xs mt-1">Đang hoạt động</div>
               </div>
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Kỳ thi (DB)</div>
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Kỳ thi</div>
                 <div className="text-2xl font-bold text-slate-900 mt-1">{contests.length}</div>
                 <div className="text-sky-600 text-xs mt-1">ICPC &amp; IOI Rule</div>
               </div>
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài nộp (DB)</div>
+                <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Bài nộp</div>
                 <div className="text-2xl font-bold text-slate-900 mt-1">{submissions.length}</div>
-                <div className="text-slate-500 text-xs mt-1">Redis Queue Polling</div>
+                <div className="text-slate-500 text-xs mt-1">Xếp hàng Redis</div>
               </div>
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
                 <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">Podman Workers</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1">{judgerWorkers.length || 1} Active</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1">{judgerWorkers.length || 1} Online</div>
                 <div className="text-emerald-600 text-xs mt-1">Persistent Engine API</div>
               </div>
             </div>
@@ -482,48 +615,54 @@ export const App: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-4 space-y-3">
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs">
-                <h3 className="font-semibold text-slate-900 text-sm mb-3">Bài tập từ PostgreSQL</h3>
-                <div className="space-y-2">
-                  {problems.map((prob) => (
-                    <div
-                      key={prob.id}
-                      onClick={() => setSelectedProblem(prob)}
-                      className={`p-3 rounded-md border cursor-pointer transition ${
-                        selectedProblem?.id === prob.id
-                          ? 'border-sky-500 bg-sky-50/50'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-mono font-bold text-sky-700">{prob.code}</span>
-                        <span className="text-slate-500">{prob.judge_mode}</span>
+                <h3 className="font-semibold text-slate-900 text-sm mb-3">Danh sách bài tập</h3>
+                {problems.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    Không tìm thấy bài tập nào. Quản trị viên có thể thêm bài tập mới từ trang Admin.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {problems.map((prob) => (
+                      <div
+                        key={prob.id}
+                        onClick={() => setSelectedProblem(prob)}
+                        className={`p-3 rounded-md border cursor-pointer transition ${
+                          selectedProblem?.id === prob.id
+                            ? 'border-sky-500 bg-sky-50/50'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-mono font-bold text-sky-700">{prob.code}</span>
+                          <span className="text-slate-500">{prob.judge_mode}</span>
+                        </div>
+                        <div className="font-medium text-slate-900 text-sm mt-1">{prob.title}</div>
+                        <div className="flex gap-2 text-xs text-slate-500 mt-2">
+                          <span>{prob.time_limit_ms}ms</span>
+                          <span>&bull;</span>
+                          <span>{prob.memory_limit_mb}MB</span>
+                          <span>&bull;</span>
+                          <span
+                            className={`font-semibold ${
+                              prob.difficulty === 'Easy'
+                                ? 'text-emerald-600'
+                                : prob.difficulty === 'Medium'
+                                ? 'text-amber-600'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {prob.difficulty}
+                          </span>
+                        </div>
                       </div>
-                      <div className="font-medium text-slate-900 text-sm mt-1">{prob.title}</div>
-                      <div className="flex gap-2 text-xs text-slate-500 mt-2">
-                        <span>{prob.time_limit_ms}ms</span>
-                        <span>&bull;</span>
-                        <span>{prob.memory_limit_mb}MB</span>
-                        <span>&bull;</span>
-                        <span
-                          className={`font-semibold ${
-                            prob.difficulty === 'Easy'
-                              ? 'text-emerald-600'
-                              : prob.difficulty === 'Medium'
-                              ? 'text-amber-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {prob.difficulty}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="lg:col-span-8 space-y-6">
-              {selectedProblem && (
+              {selectedProblem ? (
                 <>
                   <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
                     <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
@@ -551,11 +690,10 @@ export const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Submission Form */}
                   <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                        <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải (Thực tế vào Database)
+                        <Code2 className="w-4 h-4 text-sky-600" /> Nộp bài giải
                       </h3>
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-slate-500 font-medium">Ngôn ngữ:</label>
@@ -593,6 +731,10 @@ export const App: React.FC = () => {
                     </div>
                   </div>
                 </>
+              ) : (
+                <div className="bg-white p-8 rounded-lg border border-slate-200 text-center text-slate-500">
+                  Không tìm thấy bài tập được chọn.
+                </div>
               )}
             </div>
           </div>
@@ -602,25 +744,31 @@ export const App: React.FC = () => {
         {activeTab === 'contests' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu (Từ PostgreSQL)</h2>
+              <h2 className="text-xl font-bold text-slate-900">Kỳ thi lập trình thi đấu</h2>
               <div className="mt-6 divide-y divide-slate-200">
-                {contests.map((c) => (
-                  <div key={c.id} className="py-4 flex justify-between items-center">
-                    <div>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
-                        {c.rule_type} Rules
-                      </span>
-                      <h3 className="text-base font-semibold text-slate-900 mt-1">{c.title}</h3>
-                      <p className="text-xs text-slate-600 mt-1">{c.description}</p>
-                      <div className="text-xs text-slate-400 mt-2 font-mono">
-                        Bắt đầu: {new Date(c.start_time).toLocaleString()} &bull; Kết thúc: {new Date(c.end_time).toLocaleString()}
-                      </div>
-                    </div>
-                    <button className="px-4 py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700">
-                      Chi tiết kỳ thi
-                    </button>
+                {contests.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    Không tìm thấy kỳ thi nào. Quản trị viên có thể tạo kỳ thi mới từ trang Admin.
                   </div>
-                ))}
+                ) : (
+                  contests.map((c) => (
+                    <div key={c.id} className="py-4 flex justify-between items-center">
+                      <div>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                          {c.rule_type} Rules
+                        </span>
+                        <h3 className="text-base font-semibold text-slate-900 mt-1">{c.title}</h3>
+                        <p className="text-xs text-slate-600 mt-1">{c.description}</p>
+                        <div className="text-xs text-slate-400 mt-2 font-mono">
+                          Bắt đầu: {new Date(c.start_time).toLocaleString()} &bull; Kết thúc: {new Date(c.end_time).toLocaleString()}
+                        </div>
+                      </div>
+                      <button className="px-4 py-2 bg-sky-600 text-white rounded text-xs font-semibold hover:bg-sky-700">
+                        Chi tiết kỳ thi
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -631,17 +779,23 @@ export const App: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
               <h2 className="text-xl font-bold text-slate-900">Các câu lạc bộ &amp; Tổ chức đối tác</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                {organizations.map((org) => (
-                  <div key={org.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                    <div className="font-bold text-slate-900 text-base">{org.name}</div>
-                    <p className="text-xs text-slate-600 mt-1">{org.description}</p>
-                    <div className="text-xs text-slate-500 mt-3 font-mono">
-                      {org.member_count} thành viên &bull; {org.contests_count} kỳ thi
+              {organizations.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  Không tìm thấy tổ chức nào. Quản trị viên có thể thêm tổ chức từ trang Admin.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                  {organizations.map((org) => (
+                    <div key={org.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                      <div className="font-bold text-slate-900 text-base">{org.name}</div>
+                      <p className="text-xs text-slate-600 mt-1">{org.description}</p>
+                      <div className="text-xs text-slate-500 mt-3 font-mono">
+                        {org.member_count} thành viên &bull; {org.contests_count} kỳ thi
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -651,7 +805,7 @@ export const App: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">Danh sách bài nộp từ PostgreSQL</h2>
+                <h2 className="text-xl font-bold text-slate-900">Danh sách bài nộp</h2>
                 <button
                   onClick={fetchData}
                   className="px-2.5 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100 flex items-center gap-1"
@@ -676,8 +830,8 @@ export const App: React.FC = () => {
                   <tbody className="divide-y divide-slate-200">
                     {submissions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-4 text-center text-slate-500">
-                          Chưa có bài nộp nào. Hãy thử nộp một bài giải!
+                        <td colSpan={7} className="p-6 text-center text-slate-500">
+                          Không tìm thấy bài nộp nào.
                         </td>
                       </tr>
                     ) : (
@@ -713,7 +867,6 @@ export const App: React.FC = () => {
                 </table>
               </div>
 
-              {/* Supported Verdicts list */}
               <div className="mt-4 pt-4 border-t border-slate-200">
                 <span className="text-xs text-slate-500 font-medium">Trạng thái verdict chuẩn trong hệ thống: </span>
                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -732,18 +885,24 @@ export const App: React.FC = () => {
         {activeTab === 'blogs' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức (Từ PostgreSQL)</h2>
-              <div className="mt-6 space-y-4">
-                {blogs.map((b) => (
-                  <article key={b.id} className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
-                    <div className="text-xs text-slate-500">
-                      {new Date(b.created_at).toLocaleDateString()} &bull; bởi {b.author_name}
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900 mt-1">{b.title}</h3>
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{b.content_markdown}</p>
-                  </article>
-                ))}
-              </div>
+              <h2 className="text-xl font-bold text-slate-900">Bài viết &amp; Tin tức</h2>
+              {blogs.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  Không tìm thấy bài viết nào. Quản trị viên có thể đăng bài từ trang Admin.
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {blogs.map((b) => (
+                    <article key={b.id} className="p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition">
+                      <div className="text-xs text-slate-500">
+                        {new Date(b.created_at).toLocaleDateString()} &bull; bởi {b.author_name}
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 mt-1">{b.title}</h3>
+                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">{b.content_markdown}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -752,18 +911,24 @@ export const App: React.FC = () => {
         {activeTab === 'wiki' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki (Từ PostgreSQL)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {wikis.map((w) => (
-                  <div key={w.id} className="p-4 border border-slate-200 rounded-lg">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-                      {w.category}
-                    </span>
-                    <h3 className="font-bold text-sm text-slate-900 mt-2">{w.title}</h3>
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{w.content_markdown}</p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="text-xl font-bold text-slate-900">Cẩm nang &amp; Tài liệu Wiki</h2>
+              {wikis.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  Không tìm thấy tài liệu wiki nào. Quản trị viên có thể thêm mục wiki từ trang Admin.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  {wikis.map((w) => (
+                    <div key={w.id} className="p-4 border border-slate-200 rounded-lg">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                        {w.category}
+                      </span>
+                      <h3 className="font-bold text-sm text-slate-900 mt-2">{w.title}</h3>
+                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">{w.content_markdown}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -802,7 +967,7 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW: Quản trị Admin (Real Route Registry & Podman Judgers) */}
+        {/* VIEW: Quản trị Admin (Add Content Forms, Route Registry, Podman Judgers) */}
         {activeTab === 'admin' && (
           <div className="space-y-8">
             <div className="bg-white p-6 rounded-lg border border-purple-200 shadow-xs">
@@ -812,7 +977,7 @@ export const App: React.FC = () => {
                     <Shield className="w-5 h-5 text-purple-600" /> Trung tâm Quản trị Toàn diện (Admin Dashboard)
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Toàn bộ Route Catalog &amp; API thực tế từ Axum Backend và Container thực tế từ Podman Engine.
+                    Thêm và quản lý nội dung (Bài tập, Kỳ thi, Tổ chức, Blog, Wiki), giám sát Route Catalog và điều khiển Podman Judger.
                   </p>
                 </div>
                 <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-md">
@@ -820,8 +985,321 @@ export const App: React.FC = () => {
                 </span>
               </div>
 
+              {/* SECTION: Admin Content Creator Forms */}
+              <div className="mt-6 p-5 border border-purple-100 rounded-lg bg-purple-50/30">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                    <FolderPlus className="w-4 h-4 text-purple-600" /> Thêm Nội dung Mới vào Hệ thống
+                  </h3>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setAdminAddCategory('problem')}
+                      className={`px-2.5 py-1 text-xs rounded font-medium ${
+                        adminAddCategory === 'problem' ? 'bg-purple-600 text-white' : 'bg-white border text-slate-700'
+                      }`}
+                    >
+                      + Bài tập
+                    </button>
+                    <button
+                      onClick={() => setAdminAddCategory('contest')}
+                      className={`px-2.5 py-1 text-xs rounded font-medium ${
+                        adminAddCategory === 'contest' ? 'bg-purple-600 text-white' : 'bg-white border text-slate-700'
+                      }`}
+                    >
+                      + Kỳ thi
+                    </button>
+                    <button
+                      onClick={() => setAdminAddCategory('org')}
+                      className={`px-2.5 py-1 text-xs rounded font-medium ${
+                        adminAddCategory === 'org' ? 'bg-purple-600 text-white' : 'bg-white border text-slate-700'
+                      }`}
+                    >
+                      + Tổ chức
+                    </button>
+                    <button
+                      onClick={() => setAdminAddCategory('blog')}
+                      className={`px-2.5 py-1 text-xs rounded font-medium ${
+                        adminAddCategory === 'blog' ? 'bg-purple-600 text-white' : 'bg-white border text-slate-700'
+                      }`}
+                    >
+                      + Blog
+                    </button>
+                    <button
+                      onClick={() => setAdminAddCategory('wiki')}
+                      className={`px-2.5 py-1 text-xs rounded font-medium ${
+                        adminAddCategory === 'wiki' ? 'bg-purple-600 text-white' : 'bg-white border text-slate-700'
+                      }`}
+                    >
+                      + Wiki
+                    </button>
+                  </div>
+                </div>
+
+                {adminMsg && (
+                  <div className="mb-4 p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-xs">
+                    {adminMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleAdminCreate} className="space-y-3 bg-white p-4 rounded border border-slate-200">
+                  {adminAddCategory === 'problem' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Mã bài (Code)</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="P1004"
+                            value={probCode}
+                            onChange={(e) => setProbCode(e.target.value)}
+                            className="w-full text-xs p-2 border rounded font-mono"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Tiêu đề bài tập</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Tìm cặp số nguyên tố..."
+                            value={probTitle}
+                            onChange={(e) => setProbTitle(e.target.value)}
+                            className="w-full text-xs p-2 border rounded"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Độ khó</label>
+                          <select
+                            value={probDiff}
+                            onChange={(e) => setProbDiff(e.target.value)}
+                            className="w-full text-xs p-2 border rounded bg-white"
+                          >
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Chế độ chấm</label>
+                          <select
+                            value={probJudgeMode}
+                            onChange={(e) => setProbJudgeMode(e.target.value)}
+                            className="w-full text-xs p-2 border rounded bg-white"
+                          >
+                            <option value="Standard">Standard Diff</option>
+                            <option value="CustomChecker">Custom Checker</option>
+                            <option value="Interactive">Interactive</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Giới hạn thời gian (ms)</label>
+                          <input
+                            type="number"
+                            required
+                            value={probTimeLimit}
+                            onChange={(e) => setProbTimeLimit(Number(e.target.value))}
+                            className="w-full text-xs p-2 border rounded font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Giới hạn bộ nhớ (MB)</label>
+                          <input
+                            type="number"
+                            required
+                            value={probMemLimit}
+                            onChange={(e) => setProbMemLimit(Number(e.target.value))}
+                            className="w-full text-xs p-2 border rounded font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Đề bài (Hỗ trợ Markdown &amp; KaTeX $...$)
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={probStatement}
+                          onChange={(e) => setProbStatement(e.target.value)}
+                          className="w-full text-xs p-2 border rounded font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Test mẫu Input</label>
+                          <textarea
+                            rows={2}
+                            value={probSampleIn}
+                            onChange={(e) => setProbSampleIn(e.target.value)}
+                            className="w-full text-xs p-2 border rounded font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Test mẫu Output</label>
+                          <textarea
+                            rows={2}
+                            value={probSampleOut}
+                            onChange={(e) => setProbSampleOut(e.target.value)}
+                            className="w-full text-xs p-2 border rounded font-mono"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {adminAddCategory === 'contest' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Tên kỳ thi</label>
+                        <input
+                          type="text"
+                          required
+                          value={contestTitle}
+                          onChange={(e) => setContestTitle(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                          placeholder="Kỳ thi lập trình thi đấu..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Mô tả kỳ thi</label>
+                        <textarea
+                          rows={3}
+                          value={contestDesc}
+                          onChange={(e) => setContestDesc(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Thể thức</label>
+                        <select
+                          value={contestRule}
+                          onChange={(e) => setContestRule(e.target.value)}
+                          className="w-full text-xs p-2 border rounded bg-white"
+                        >
+                          <option value="ICPC">ICPC Rule</option>
+                          <option value="IOI">IOI Rule</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {adminAddCategory === 'org' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Tên tổ chức / CLB</label>
+                        <input
+                          type="text"
+                          required
+                          value={orgName}
+                          onChange={(e) => setOrgName(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                          placeholder="CLB Thuật toán..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Mô tả tổ chức</label>
+                        <textarea
+                          rows={3}
+                          value={orgDesc}
+                          onChange={(e) => setOrgDesc(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {adminAddCategory === 'blog' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Tiêu đề bài viết</label>
+                          <input
+                            type="text"
+                            required
+                            value={blogTitle}
+                            onChange={(e) => setBlogTitle(e.target.value)}
+                            className="w-full text-xs p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Tác giả</label>
+                          <input
+                            type="text"
+                            value={blogAuthor}
+                            onChange={(e) => setBlogAuthor(e.target.value)}
+                            placeholder={currentUser || 'Admin'}
+                            className="w-full text-xs p-2 border rounded"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Nội dung bài viết</label>
+                        <textarea
+                          rows={4}
+                          required
+                          value={blogContent}
+                          onChange={(e) => setBlogContent(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {adminAddCategory === 'wiki' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Tiêu đề tài liệu</label>
+                          <input
+                            type="text"
+                            required
+                            value={wikiTitle}
+                            onChange={(e) => setWikiTitle(e.target.value)}
+                            className="w-full text-xs p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Chuyên mục</label>
+                          <input
+                            type="text"
+                            required
+                            value={wikiCategory}
+                            onChange={(e) => setWikiCategory(e.target.value)}
+                            className="w-full text-xs p-2 border rounded"
+                            placeholder="Tutorial, Compiler, FAQ..."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Nội dung cẩm nang</label>
+                        <textarea
+                          rows={4}
+                          required
+                          value={wikiContent}
+                          onChange={(e) => setWikiContent(e.target.value)}
+                          className="w-full text-xs p-2 border rounded"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-purple-600 text-white rounded text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Lưu vào Cơ sở Dữ liệu
+                    </button>
+                  </div>
+                </form>
+              </div>
+
               {/* Real Route & API Catalog */}
-              <div className="mt-6">
+              <div className="mt-8">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
                     <Terminal className="w-4 h-4 text-purple-600" /> Quản lý Danh mục Route &amp; API Endpoints ({routesCatalog.length})
@@ -1043,7 +1521,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="text-slate-600">Light Mode</span>
             <span>&bull;</span>
-            <span className="text-slate-600">PostgreSQL 17 Real Persistence</span>
+            <span className="text-slate-600">Trung tâm Quản trị Toàn diện</span>
             <span>&bull;</span>
             <span className="text-slate-600">Podman Engine API</span>
           </div>
